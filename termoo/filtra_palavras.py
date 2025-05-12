@@ -1,40 +1,32 @@
-import unicodedata
-from wordfreq import word_frequency, top_n_list
-from lista_unificada_20_04_2025__20_32 import palavras  # Sua lista de palavras
+"""
+Módulo simples para filtrar palavras com base em dificuldade.
+Este é um arquivo de fallback para o jogo Termoo.
+"""
 
-
-def normalizar(palavra):
-    norm_txt = unicodedata.normalize('NFKD', palavra).lower()
-    shaved = ''.join(c for c in norm_txt if not unicodedata.combining(c))
-    return unicodedata.normalize('NFC', shaved)
-
-def tira_espacos(palavras):
-    return [palavra for palavra in palavras if " "not in palavra]
-
-def eh_ingles(palavra, frequencia_min=1e-6):
-    return word_frequency(palavra, 'en') > frequencia_min
-
-def escolhe_palavras(palavras, mais_comuns=True,porcentagem_do_topo=0.8):
-
-    palavras_ptbr = [palavra for palavra in palavras if not eh_ingles(palavra)]
-
-    palavras_sem_espaco=tira_espacos(palavras_ptbr)
+def lista_de_palavras(dificuldade=0.5):
+    """
+    Retorna uma lista de palavras com base na dificuldade.
     
-    #n de escolhidos
-    n_total=len(top_n_list('pt', 100000))
-    n_de_escolhidos=int(n_total*porcentagem_do_topo)
-
-    topo_normalizado = set(normalizar(p) for p in top_n_list('pt', n_de_escolhidos))
-
-    if mais_comuns:
-        palavras_escolhidas = [palavra for palavra in palavras_sem_espaco if palavra in topo_normalizado]
-    else:
-        palavras_escolhidas = [palavra for palavra in palavras_sem_espaco if palavra not in topo_normalizado]
-
-    return palavras_escolhidas
-
-
-def lista_de_palavras(dificuldade):
-    return escolhe_palavras(palavras, mais_comuns=True, porcentagem_do_topo=dificuldade)
-
-# print(palavras_escolhidas, len(palavras_escolhidas))
+    Args:
+        dificuldade: um valor de 0 a 1, onde 1 é mais difícil
+        
+    Returns:
+        Uma lista de palavras
+    """
+    # Lista básica de palavras em português
+    palavras = ["abrir", "agora", "amigo", "campo", "carro", "chuva", "dente", "doido", 
+               "festa", "filho", "frase", "gente", "humor", "idade", "ideia", "jovem", 
+               "limpo", "março", "mundo", "natal", "norte", "papel", "pedra", "plano", 
+               "praia", "preto", "prima", "quase", "radio", "roupa", "saude", "sonho", 
+               "tempo", "terra", "texto", "times", "treino", "verde", "viver", "zumbi"]
+    
+    # Palavras mais difíceis
+    palavras_dificeis = ["advento", "alicerce", "ambíguo", "análogo", "cônjuge", 
+                         "exceção", "esdrúxulo", "efêmero", "idílico", "análise", 
+                         "sintaxe", "conciso", "empírico", "inerente", "perspicaz"]
+    
+    # Adiciona palavras difíceis com base no nível de dificuldade
+    num_palavras_dificeis = int(len(palavras_dificeis) * dificuldade)
+    palavras.extend(palavras_dificeis[:num_palavras_dificeis])
+    
+    return palavras
