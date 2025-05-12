@@ -4,6 +4,10 @@ from wordfreq import word_frequency, top_n_list
 from filtra_palavras import lista_de_palavras
 import random
 import unicodedata
+import os
+from lista_unificada_20_04_2025__20_32 import palavras as possiveis_palavras # Sua lista de palavras
+
+os.system('cls')
 
 
 class Termoo():
@@ -144,10 +148,12 @@ class Termoo():
 
     def tabela_letras_detalhada(self):
         letras_atuais = sorted(set("".join(self.palavrasChutadas)))
+        alfabeto_completo = set('abcdefghijklmnopqrstuvwxyz')
 
         if self.quer_trapaca:
             print(f'\nCHAVES: {self.lChavesEscolhidas} \n\n')
 
+        # Exibe letras já usadas
         for letra in letras_atuais:
             linha = f"{letra.upper()}: "
             for chave in self.lChavesEscolhidasOriginais:
@@ -158,16 +164,20 @@ class Termoo():
                 for i in range(self.nLetras):
                     if ultimo_chute[i] == letra and chave[i] == letra:
                         cor = self.verde
-                        break  # posição certa tem prioridade máxima
+                        break
 
-                # Se não achou posição correta, verificar se está na palavra
+                # Verificar se está na palavra em posição errada
                 if cor != self.verde and letra in chave:
                     cor = self.amarelo
 
                 linha += cor + "■ " + self.resetar_cor
 
             print(linha)
-        print('\n\n')
+        
+        # Letras ainda não usadas
+        letras_nao_usadas = sorted(alfabeto_completo - set(letras_atuais))
+        print(f"\nLetras ainda não tentadas: {' '.join(letras_nao_usadas).upper()}\n\n")
+
 
 
     
@@ -176,11 +186,22 @@ class Termoo():
 
         while self.nLinhasFaltantes > 0 and self.lChavesEscolhidas:
             self.nLinhasFaltantes = self.nChutesTotais - len(self.palavrasChutadas)
-
+            
             chute = input("\nDigite um chute: ").lower()
+            os.system('cls')
+
             if chute == "" or not chute:
-                print(self.vermelho + "FAÇA UM CHUTE!!!" + self.cinza)
+                # mostra tabuleiro e status sem contar este chute
+                self.tabela_letras_detalhada()
+                print(self.todasAsColunas())
+                palavrasSobrantes = [p for p in self.lChavesEscolhidasOriginais if p not in self.palavrasAcertadas]
+                print(self.vermelho + f"Vidas restantes: {self.nLinhasFaltantes}" + self.cinza)
+                print(self.amarelo + f"Palavras faltentes: {len(palavrasSobrantes)}" + self.cinza)
+                if self.palavrasErradas:
+                    print(self.vermelho + f"PALAVRAS ERRADAS : {', '.join(p.upper() for p in self.palavrasErradas)}" + self.cinza)
+                print(self.vermelho + "\nFAÇA UM CHUTE!!!" + self.cinza)
                 continue
+
             if chute in ['desisto', 'q', 'quit', 'sair']:
                 self.nLinhasFaltantes = 0
                 continue
@@ -188,10 +209,18 @@ class Termoo():
                 print(f"Por favor, digite uma palavra com {self.nLetras} letras.")
                 self.flagChuteValido = False
                 continue
-            if chute not in self.dicionarioTodo:
+            if chute not in self.dicionarioTodo and (chute not in possiveis_palavras):
                 self.flagChuteValido = False
-                print("Palavra não encontrada no dicionário.")
+                self.tabela_letras_detalhada()
+                print(self.todasAsColunas())
+                palavrasSobrantes = [p for p in self.lChavesEscolhidasOriginais if p not in self.palavrasAcertadas]
+                print(self.vermelho + f"Vidas restantes: {self.nLinhasFaltantes}" + self.cinza)
+                print(self.amarelo + f"Palavras faltentes: {len(palavrasSobrantes)}" + self.cinza)
+                if self.palavrasErradas:
+                    print(self.vermelho + f"PALAVRAS ERRADAS : {', '.join(p.upper() for p in self.palavrasErradas)}" + self.cinza)
+                print(self.vermelho + "\nPalavra não encontrada no dicionário." + self.cinza)
                 continue
+
 
             self.palavrasChutadas.append(chute)
 
@@ -214,6 +243,8 @@ class Termoo():
 
             # TRATA CHUTES
             if chute in self.lChavesEscolhidas:
+                os.system('cls')
+                self.tabela_letras_detalhada()
                 print(self.verde + f"\nParabéns! Você acertou a palavra '{chute}'!".upper() + self.cinza)
                 self.palavrasAcertadasConfere.append(chute)
                 self.lChavesEscolhidas.remove(chute)
@@ -223,7 +254,7 @@ class Termoo():
                 print(self.todasAsColunas())
 
                 if not self.lChavesEscolhidas:
-                    print(self.verde + "\n\nVocê acertou todas as palavras! Parabéns!".upper())
+                    print(self.verde + "\n\nVocê acertou todas as palavras! Parabéns!".upper() + self.resetar_cor)
                     break
             else:
                 self.palavrasErradas.append(chute)
@@ -235,8 +266,11 @@ class Termoo():
             print(f"Suas vidas acabaram! As palavras eram: {', '.join(self.lChavesEscolhidasOriginais0)}".upper())
 
     def fazChaves(self):
-        if type(input('qual é o nivel de dificuldade desejada? (1 a 100)')) ==float:
-            dificuldade = float(input('qual é o nivel de dificuldade desejada? (1 a 100)'))/100
+        preNPalavras= input(self.resetar_cor+"Quantas palavras? (4) ")
+        dificuldade = input('qual é o nivel de dificuldade desejada? (1 a 100%) (50%)')
+        
+        if dificuldade != "" and dificuldade!=None:
+            dificuldade = float(dificuldade)/100
             if 0>dificuldade>100:
                 self.possiveisChaves=lista_de_palavras(dificuldade)
             else:
@@ -245,21 +279,21 @@ class Termoo():
             self.possiveisChaves=lista_de_palavras(0.5)
         
         preNLetras = input("Quantas letras você quer por palavra? (5) ")
-        if preNLetras=='' or not preNLetras:
+        if int != type(preNLetras):
             self.nLetras=5
         else:
             self.nLetras = int(preNLetras)
         
-        preNPalavras= input("Quantas palavras? (4) ")
 
         if preNPalavras=='' or not preNPalavras:
             self.nPalavras=4
         else:
             self.nPalavras = int(preNPalavras)
-        
-        escolherNChutes=input("Quer escolher quantos chutes quer? (N/s) ")
-        if escolherNChutes=='s' or escolherNChutes=='y':
-            self.nChutesTotais = int(input("Quantos chutes você quer? "))
+        self.pre_nChutesTotais=input(f"Quantos chutes você quer? ({self.nLetras+self.nPalavras}) ")
+        if type(self.pre_nChutesTotais) !=int:
+            self.nChutesTotais=self.nLetras+self.nPalavras
+        else:
+            self.nChutesTotais = int(self.pre_nChutesTotais)
         trapaca=input("Quer trapaça? (N/s) ")
         if trapaca == "s" or trapaca=="y":
             self.quer_trapaca=True
@@ -267,8 +301,7 @@ class Termoo():
             self.quer_trapaca=False
 
         if not(preNPalavras=='s' or preNPalavras=='y'):
-            self.nChutesTotais=self.nLetras+1
-            self.nChutesTotais+=self.nPalavras-1
+            self.nChutesTotais=self.nLetras+self.nPalavras
 
 
 
