@@ -20,23 +20,24 @@ STIMULUS_DISTANCE = 120  # Space between stimuli
 SEQUENCE_LENGTH = 10  # Length of the structured sequence
 FEEDBACK_DURATION = 500  # Feedback duration in milliseconds
 
-# Default experiment settings (now modifiable)
+# Default experiment settings (modifiable)
 DEFAULT_POSITIONS = 4  # Default number of stimulus positions
 DEFAULT_BLOCKS = 8  # Default number of blocks
 DEFAULT_TRIALS_PER_BLOCK = 60  # Default trials per block
 
-# Maximum number of positions and keys
-MAX_POSITIONS = 8
-POSITION_KEYS = ['Z', 'X', 'C', 'V', 'B', 'N', 'M', ',']  # Keys for each position
+# Position keys - usando teclas numéricas do teclado principal
+POSITION_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']  # Teclas numéricas
 KEY_MAPPING = {
-    pygame.K_z: 0,
-    pygame.K_x: 1,
-    pygame.K_c: 2,
-    pygame.K_v: 3,
-    pygame.K_b: 4,
-    pygame.K_n: 5,
-    pygame.K_m: 6,
-    pygame.K_COMMA: 7
+    pygame.K_1: 0,
+    pygame.K_2: 1, 
+    pygame.K_3: 2,
+    pygame.K_4: 3,
+    pygame.K_5: 4,
+    pygame.K_6: 5,
+    pygame.K_7: 6,
+    pygame.K_8: 7,
+    pygame.K_9: 8,
+    pygame.K_0: 9
 }
 
 # Create screen
@@ -61,11 +62,12 @@ class SRTTExperiment:
         self.reaction_time = 0
         self.current_position = 0
         self.correct_responses = 0
+        self.total_responses = 0  # Adicionado para rastrear o total de respostas
+        self.correct_timestamps = []  # Adicionado para rastrear os timestamps dos acertos
         self.is_structured_block = True
         self.running = True
         self.state = "participant_info"  # Start with participant info screen
         self.blocks_data = []
-        self.show_stimulus = False
         self.block_sequence = []
         
         # Experiment settings (can be changed in settings screen)
@@ -97,21 +99,16 @@ class SRTTExperiment:
         """Display settings screen for configuration"""
         pygame.display.set_caption("Configurações do Experimento")
         
-        # Position slider (number of circles)
-        position_slider = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 - 160, 200, 20)
-        position_value = self.positions
+        # Text input boxes for numerical values
+        position_box = pygame.Rect(SCREEN_WIDTH//2 + 50, SCREEN_HEIGHT//2 - 160, 80, 30)
+        blocks_box = pygame.Rect(SCREEN_WIDTH//2 + 50, SCREEN_HEIGHT//2 - 100, 80, 30)
+        trials_box = pygame.Rect(SCREEN_WIDTH//2 + 50, SCREEN_HEIGHT//2 - 40, 80, 30)
         
-        # Blocks slider (number of blocks/batches)
-        blocks_slider = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 - 100, 200, 20)
-        blocks_value = self.blocks
+        position_value = str(self.positions)
+        blocks_value = str(self.blocks)
+        trials_value = str(self.trials_per_block)
         
-        # Trials slider (number of trials per block)
-        trials_slider = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 - 40, 200, 20)
-        trials_value = self.trials_per_block
-        
-        position_slider_active = False
-        blocks_slider_active = False
-        trials_slider_active = False
+        active_box = None
         done = False
         
         while not done and self.running:
@@ -121,62 +118,32 @@ class SRTTExperiment:
             title = font.render("Configurações do Experimento", True, (0, 0, 0))
             screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 50))
             
-            # Draw position slider
-            slider_text = font.render(f"Número de posições: {position_value}", True, (0, 0, 0))
-            screen.blit(slider_text, (SCREEN_WIDTH//2 - slider_text.get_width()//2, SCREEN_HEIGHT//2 - 180))
+            # Draw position input
+            position_text = font.render("Número de posições:", True, (0, 0, 0))
+            screen.blit(position_text, (SCREEN_WIDTH//2 - 180, SCREEN_HEIGHT//2 - 150))
             
-            pygame.draw.rect(screen, (200, 200, 200), position_slider)
-            pygame.draw.rect(screen, (0, 0, 0), position_slider, 1)
+            pygame.draw.rect(screen, (255, 255, 255), position_box)
+            pygame.draw.rect(screen, (0, 0, 0) if active_box == position_box else (200, 200, 200), position_box, 2)
+            position_surface = font.render(position_value, True, (0, 0, 0))
+            screen.blit(position_surface, (position_box.x + 5, position_box.y + 5))
             
-            # Draw slider marker
-            marker_x = position_slider.x + int((position_value - 2) * position_slider.width / (MAX_POSITIONS - 2))
-            marker_rect = pygame.Rect(marker_x - 5, position_slider.y - 5, 10, position_slider.height + 10)
-            pygame.draw.rect(screen, (0, 0, 255), marker_rect)
+            # Draw blocks input
+            blocks_text = font.render("Número de blocos:", True, (0, 0, 0))
+            screen.blit(blocks_text, (SCREEN_WIDTH//2 - 180, SCREEN_HEIGHT//2 - 90))
             
-            # Draw min/max values
-            min_text = small_font.render("2", True, (0, 0, 0))
-            screen.blit(min_text, (position_slider.x - min_text.get_width()//2, position_slider.y + 25))
+            pygame.draw.rect(screen, (255, 255, 255), blocks_box)
+            pygame.draw.rect(screen, (0, 0, 0) if active_box == blocks_box else (200, 200, 200), blocks_box, 2)
+            blocks_surface = font.render(blocks_value, True, (0, 0, 0))
+            screen.blit(blocks_surface, (blocks_box.x + 5, blocks_box.y + 5))
             
-            max_text = small_font.render(str(MAX_POSITIONS), True, (0, 0, 0))
-            screen.blit(max_text, (position_slider.x + position_slider.width - max_text.get_width()//2, position_slider.y + 25))
+            # Draw trials input
+            trials_text = font.render("Estímulos por bloco:", True, (0, 0, 0))
+            screen.blit(trials_text, (SCREEN_WIDTH//2 - 180, SCREEN_HEIGHT//2 - 30))
             
-            # Draw blocks slider
-            blocks_text = font.render(f"Número de blocos: {blocks_value}", True, (0, 0, 0))
-            screen.blit(blocks_text, (SCREEN_WIDTH//2 - blocks_text.get_width()//2, SCREEN_HEIGHT//2 - 120))
-            
-            pygame.draw.rect(screen, (200, 200, 200), blocks_slider)
-            pygame.draw.rect(screen, (0, 0, 0), blocks_slider, 1)
-            
-            # Draw slider marker
-            marker_x = blocks_slider.x + int((blocks_value - 2) * blocks_slider.width / 18)  # Max 20 blocks
-            marker_rect = pygame.Rect(marker_x - 5, blocks_slider.y - 5, 10, blocks_slider.height + 10)
-            pygame.draw.rect(screen, (0, 0, 255), marker_rect)
-            
-            # Draw min/max values
-            min_text = small_font.render("2", True, (0, 0, 0))
-            screen.blit(min_text, (blocks_slider.x - min_text.get_width()//2, blocks_slider.y + 25))
-            
-            max_text = small_font.render("20", True, (0, 0, 0))
-            screen.blit(max_text, (blocks_slider.x + blocks_slider.width - max_text.get_width()//2, blocks_slider.y + 25))
-            
-            # Draw trials slider
-            trials_text = font.render(f"Estímulos por bloco: {trials_value}", True, (0, 0, 0))
-            screen.blit(trials_text, (SCREEN_WIDTH//2 - trials_text.get_width()//2, SCREEN_HEIGHT//2 - 60))
-            
-            pygame.draw.rect(screen, (200, 200, 200), trials_slider)
-            pygame.draw.rect(screen, (0, 0, 0), trials_slider, 1)
-            
-            # Draw slider marker
-            marker_x = trials_slider.x + int((trials_value - 10) * trials_slider.width / 90)  # Range 10-100
-            marker_rect = pygame.Rect(marker_x - 5, trials_slider.y - 5, 10, trials_slider.height + 10)
-            pygame.draw.rect(screen, (0, 0, 255), marker_rect)
-            
-            # Draw min/max values
-            min_text = small_font.render("10", True, (0, 0, 0))
-            screen.blit(min_text, (trials_slider.x - min_text.get_width()//2, trials_slider.y + 25))
-            
-            max_text = small_font.render("100", True, (0, 0, 0))
-            screen.blit(max_text, (trials_slider.x + trials_slider.width - max_text.get_width()//2, trials_slider.y + 25))
+            pygame.draw.rect(screen, (255, 255, 255), trials_box)
+            pygame.draw.rect(screen, (0, 0, 0) if active_box == trials_box else (200, 200, 200), trials_box, 2)
+            trials_surface = font.render(trials_value, True, (0, 0, 0))
+            screen.blit(trials_surface, (trials_box.x + 5, trials_box.y + 5))
             
             # Draw continue button
             continue_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 + 40, 200, 40)
@@ -195,43 +162,56 @@ class SRTTExperiment:
                     return
                 
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if position_slider.collidepoint(event.pos):
-                        position_slider_active = True
-                    elif blocks_slider.collidepoint(event.pos):
-                        blocks_slider_active = True
-                    elif trials_slider.collidepoint(event.pos):
-                        trials_slider_active = True
+                    if position_box.collidepoint(event.pos):
+                        active_box = position_box
+                    elif blocks_box.collidepoint(event.pos):
+                        active_box = blocks_box
+                    elif trials_box.collidepoint(event.pos):
+                        active_box = trials_box
                     elif continue_rect.collidepoint(event.pos):
                         # Save settings and continue
-                        self.positions = position_value
-                        self.blocks = blocks_value
-                        self.trials_per_block = trials_value
-                        done = True
+                        try:
+                            self.positions = max(1, int(position_value))
+                            self.blocks = max(1, int(blocks_value))
+                            self.trials_per_block = max(1, int(trials_value))
+                            done = True
+                        except ValueError:
+                            # If conversion fails, use default values
+                            position_value = str(DEFAULT_POSITIONS)
+                            blocks_value = str(DEFAULT_BLOCKS)
+                            trials_value = str(DEFAULT_TRIALS_PER_BLOCK)
+                    else:
+                        active_box = None
                 
-                if event.type == pygame.MOUSEBUTTONUP:
-                    position_slider_active = False
-                    blocks_slider_active = False
-                    trials_slider_active = False
-                
-                if event.type == pygame.MOUSEMOTION:
-                    # Update position slider
-                    if position_slider_active:
-                        rel_x = max(0, min(event.pos[0] - position_slider.x, position_slider.width))
-                        position_value = int(2 + (rel_x / position_slider.width) * (MAX_POSITIONS - 2))
-                        position_value = max(2, min(MAX_POSITIONS, position_value))
-                    
-                    # Update blocks slider
-                    if blocks_slider_active:
-                        rel_x = max(0, min(event.pos[0] - blocks_slider.x, blocks_slider.width))
-                        blocks_value = int(2 + (rel_x / blocks_slider.width) * 18)
-                        blocks_value = max(2, min(20, blocks_value))
-                    
-                    # Update trials slider
-                    if trials_slider_active:
-                        rel_x = max(0, min(event.pos[0] - trials_slider.x, trials_slider.width))
-                        trials_value = int(10 + (rel_x / trials_slider.width) * 90)
-                        trials_value = max(10, min(100, trials_value))
-    
+                if event.type == pygame.KEYDOWN:
+                    if active_box:
+                        if event.key == pygame.K_RETURN:
+                            # Save settings and continue
+                            try:
+                                self.positions = max(1, int(position_value))
+                                self.blocks = max(1, int(blocks_value))
+                                self.trials_per_block = max(1, int(trials_value))
+                                done = True
+                            except ValueError:
+                                # If conversion fails, use default values
+                                position_value = str(DEFAULT_POSITIONS)
+                                blocks_value = str(DEFAULT_BLOCKS)
+                                trials_value = str(DEFAULT_TRIALS_PER_BLOCK)
+                        elif event.key == pygame.K_BACKSPACE:
+                            if active_box == position_box:
+                                position_value = position_value[:-1]
+                            elif active_box == blocks_box:
+                                blocks_value = blocks_value[:-1]
+                            elif active_box == trials_box:
+                                trials_value = trials_value[:-1]
+                        elif event.unicode.isdigit():  # Only allow digits
+                            if active_box == position_box:
+                                position_value += event.unicode
+                            elif active_box == blocks_box:
+                                blocks_value += event.unicode
+                            elif active_box == trials_box:
+                                trials_value += event.unicode
+
     def generate_block_sequence(self):
         """Generate the sequence for the current block"""
         if self.is_structured_block:
@@ -247,7 +227,8 @@ class SRTTExperiment:
                     # Find a non-repeating value
                     options = list(range(self.positions))
                     options.remove(sequence[i-1])
-                    sequence[i] = random.choice(options)
+                    if options:  # Make sure we have options
+                        sequence[i] = random.choice(options)
                     
             return sequence
         else:
@@ -258,12 +239,16 @@ class SRTTExperiment:
             for _ in range(self.trials_per_block):
                 # Generate new positions ensuring no immediate repetitions
                 available_positions = list(range(self.positions))
-                if last_position is not None:
+                if last_position is not None and last_position in available_positions:
                     available_positions.remove(last_position)
                 
-                new_position = random.choice(available_positions)
-                random_sequence.append(new_position)
-                last_position = new_position
+                if available_positions:  # Make sure we have options
+                    new_position = random.choice(available_positions)
+                    random_sequence.append(new_position)
+                    last_position = new_position
+                else:
+                    # Fallback if we somehow have only one position available
+                    random_sequence.append(random.randint(0, self.positions-1))
                 
             return random_sequence
     
@@ -327,7 +312,7 @@ class SRTTExperiment:
             "Tarefa de Tempo de Reação em Série (SRTT)",
             "",
             f"Você verá círculos azuis em {self.positions} posições.",
-            "Quando um círculo ficar vermelho, pressione a tecla correspondente",
+            "Quando um círculo ficar vermelho, pressione a tecla numérica correspondente",
             "o mais rápido e precisamente possível:",
             "",
         ]
@@ -343,17 +328,31 @@ class SRTTExperiment:
         
         instructions += [
             "",
-            "Mantenha seus dedos posicionados nas teclas durante todo o experimento.",
+            "Mantenha seus dedos posicionados nas teclas numéricas durante todo o experimento.",
             f"O experimento consiste em {self.blocks} blocos de {self.trials_per_block} estímulos cada.",
             "",
             "Pressione ESPAÇO para iniciar o experimento."
         ]
         
-        y_pos = SCREEN_HEIGHT // 4
+        # Começar o texto muito mais acima na tela e com margens adequadas
+        margin = 40  # Margem horizontal para evitar corte nas bordas
+        y_pos = 20  # Começar praticamente no topo
+        
+        # Calcula largura máxima do texto para posicionamento centralizado
+        max_width = 0
+        for line in instructions:
+            text_surface = font.render(line, True, (0, 0, 0))
+            max_width = max(max_width, text_surface.get_width())
+        
+        # Garante que o texto não exceda as margens laterais
+        available_width = SCREEN_WIDTH - (2 * margin)
+        
         for line in instructions:
             text = font.render(line, True, (0, 0, 0))
-            screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y_pos))
-            y_pos += 30
+            # Centraliza o texto mas garantindo margens mínimas
+            x_pos = max(margin, SCREEN_WIDTH//2 - text.get_width()//2)
+            screen.blit(text, (x_pos, y_pos))
+            y_pos += 26  # Distância entre linhas reduzida para caber mais texto
         
         pygame.display.flip()
         
@@ -378,10 +377,15 @@ class SRTTExperiment:
             "Pressione ESPAÇO quando estiver pronto para continuar."
         ]
         
-        y_pos = SCREEN_HEIGHT // 3
+        # Começar o texto mais acima na tela e com margens adequadas
+        margin = 40  # Margem horizontal para evitar corte nas bordas
+        y_pos = 20  # Começar praticamente no topo
+        
         for line in break_text:
             text = font.render(line, True, (0, 0, 0))
-            screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y_pos))
+            # Centraliza o texto mas garantindo margens mínimas
+            x_pos = max(margin, SCREEN_WIDTH//2 - text.get_width()//2)
+            screen.blit(text, (x_pos, y_pos))
             y_pos += 40
         
         pygame.display.flip()
@@ -404,14 +408,16 @@ class SRTTExperiment:
             x = start_x + i * STIMULUS_DISTANCE
             y = SCREEN_HEIGHT // 2
             
-            # Draw corresponding key above the circle
-            key_text = font.render(POSITION_KEYS[i], True, (0, 0, 0))
-            screen.blit(key_text, (x - key_text.get_width()//2, y - STIMULUS_SIZE - 15))
+            # Determinar cor do círculo - SEMPRE vermelho para a posição atual
+            if i == self.current_position:
+                color = STIMULUS_ACTIVE_COLOR  # Vermelho para a posição atual
+            else:
+                color = STIMULUS_COLOR  # Azul para as outras posições
             
-            color = STIMULUS_ACTIVE_COLOR if i == self.current_position and self.show_stimulus else STIMULUS_COLOR
+            # Desenhar o círculo
             pygame.draw.circle(screen, color, (x, y), STIMULUS_SIZE // 2)
             
-            # Draw position number underneath
+            # Desenhar número da posição embaixo do círculo
             position_text = font.render(str(i + 1), True, (0, 0, 0))
             screen.blit(position_text, (x - position_text.get_width()//2, y + STIMULUS_SIZE))
     
@@ -424,12 +430,13 @@ class SRTTExperiment:
     def present_trial(self):
         """Present a single trial"""
         self.current_position = self.block_sequence[self.current_trial]
-        self.show_stimulus = True
+        # Remover uso da variável show_stimulus que estava causando problemas
         self.start_time = time.time()
         
         # Reset for next trial
         self.reaction_time = 0
         waiting_for_response = True
+        incorrect_attempts = 0
         
         while waiting_for_response and self.running:
             screen.fill(BACKGROUND_COLOR)
@@ -439,6 +446,7 @@ class SRTTExperiment:
                                      True, (0, 0, 0))
             screen.blit(block_info, (10, 10))
             
+            # Desenhar círculos (um será vermelho)
             self.draw_stimuli()
             pygame.display.flip()
             
@@ -452,64 +460,84 @@ class SRTTExperiment:
                         self.running = False
                         return
                     
-                    # Check response keys
+                    # Check response keys - agora usando teclas numéricas
                     if event.key in KEY_MAPPING:
-                        self.reaction_time = (time.time() - self.start_time) * 1000  # Convert to milliseconds
+                        response_time = (time.time() - self.start_time) * 1000  # Convert to milliseconds
                         correct = self.validate_response(event.key)
                         
-                        if correct:
-                            self.correct_responses += 1
+                        # Record the reaction time (only record the time for the first attempt)
+                        if incorrect_attempts == 0:
+                            self.reaction_time = response_time
                         
-                        # Record trial data
+                        # Incrementar total de respostas
+                        self.total_responses += 1
+                        
+                        # Record the response (both correct and incorrect)
                         self.results.append({
                             "participant_id": self.participant_id,
                             "block": self.current_block + 1,
                             "block_type": "structured" if self.is_structured_block else "random",
                             "trial": self.current_trial + 1,
                             "position": self.current_position + 1,
-                            "reaction_time": round(self.reaction_time, 2),
+                            "reaction_time": round(response_time, 2),
                             "correct": correct,
+                            "attempt": incorrect_attempts + 1,
                             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         })
                         
-                        # Show feedback briefly
-                        self.show_stimulus = False
-                        pygame.display.flip()
-                        pygame.time.delay(100)  # Brief delay between trials
-                        
-                        waiting_for_response = False
+                        if correct:
+                            # If correct, end trial and proceed
+                            self.correct_responses += 1
+                            # Registrar timestamp do acerto para cálculo do tempo entre acertos
+                            current_time = time.time()
+                            self.correct_timestamps.append(current_time)
+                            
+                            # Show feedback briefly
+                            pygame.display.flip()
+                            pygame.time.delay(100)  # Brief delay between trials
+                            waiting_for_response = False
+                        else:
+                            # For incorrect response, keep the same position but record the attempt
+                            incorrect_attempts += 1
+                            
+                            # Flash the stimulus briefly to indicate incorrect response
+                            pygame.display.flip()
+                            pygame.time.delay(200)
+                            pygame.display.flip()
             
-            # If no response after 5 seconds, count as error and move on
-            if time.time() - self.start_time > 5.0 and waiting_for_response:
-                self.reaction_time = 5000  # Set to maximum RT
-                
-                # Record trial data (missed response)
+            # If no response after 5 seconds, count as timeout but keep waiting for response
+            if time.time() - self.start_time > 5.0 and incorrect_attempts == 0:
+                # Record timeout as an incorrect attempt
+                incorrect_attempts += 1
+                self.total_responses += 1  # Também contar timeouts como respostas
                 self.results.append({
                     "participant_id": self.participant_id,
                     "block": self.current_block + 1,
                     "block_type": "structured" if self.is_structured_block else "random",
                     "trial": self.current_trial + 1,
                     "position": self.current_position + 1,
-                    "reaction_time": self.reaction_time,
+                    "reaction_time": 5000,  # Set to maximum RT
                     "correct": False,
+                    "attempt": incorrect_attempts,
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 })
                 
-                waiting_for_response = False
-    
+                # Reset timer but keep waiting for response
+                self.start_time = time.time()
+
     def save_results(self):
         """Save results to a CSV file"""
         # Create results directory if it doesn't exist
         if not os.path.exists('results'):
             os.makedirs('results')
-        
+                
         # Generate filename with participant ID and timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"results/srtt_participant_{self.participant_id}_{timestamp}.csv"
         
         with open(filename, 'w', newline='') as csvfile:
             fieldnames = ["participant_id", "block", "block_type", "trial", 
-                          "position", "reaction_time", "correct", "timestamp"]
+                          "position", "reaction_time", "correct", "attempt", "timestamp"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
             writer.writeheader()
@@ -519,17 +547,37 @@ class SRTTExperiment:
         print(f"Results saved to {filename}")
         return filename
     
+    def calculate_inter_hit_times(self):
+        """Calculate average time between consecutive correct responses"""
+        if len(self.correct_timestamps) <= 1:
+            return 0  # Não há intervalos se houver menos de 2 acertos
+        
+        total_time = 0
+        intervals = 0
+        
+        for i in range(1, len(self.correct_timestamps)):
+            interval = self.correct_timestamps[i] - self.correct_timestamps[i-1]
+            total_time += interval
+            intervals += 1
+            
+        return (total_time / intervals) if intervals > 0 else 0
+
     def show_completion_screen(self, filename):
         """Show experiment completion screen"""
         screen.fill(BACKGROUND_COLOR)
         
-        # Calculate accuracy
-        accuracy = (self.correct_responses / (self.current_block * self.trials_per_block + self.current_trial)) * 100
+        # Calculate accuracy based on total responses
+        accuracy = (self.correct_responses / self.total_responses * 100) if self.total_responses > 0 else 0
+        
+        # Calculate average time between correct responses (in seconds)
+        avg_inter_hit_time = self.calculate_inter_hit_times()
         
         completion_text = [
             "Experimento concluído!",
             "",
             f"Precisão geral: {accuracy:.1f}%",
+            "",
+            f"Tempo médio entre acertos: {avg_inter_hit_time:.2f} segundos",
             "",
             f"Os resultados foram salvos em:",
             filename,
@@ -539,11 +587,16 @@ class SRTTExperiment:
             "Pressione ESC para sair."
         ]
         
-        y_pos = SCREEN_HEIGHT // 4
+        # Começar o texto mais acima na tela e com margens adequadas
+        margin = 40  # Margem horizontal para evitar corte nas bordas
+        y_pos = 20  # Começar praticamente no topo
+        
         for line in completion_text:
             text = font.render(line, True, (0, 0, 0))
-            screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, y_pos))
-            y_pos += 40
+            # Centraliza o texto mas garantindo margens mínimas
+            x_pos = max(margin, SCREEN_WIDTH//2 - text.get_width()//2)
+            screen.blit(text, (x_pos, y_pos))
+            y_pos += 38
         
         pygame.display.flip()
         
@@ -552,8 +605,15 @@ class SRTTExperiment:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     waiting_for_input = False
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    waiting_for_input = False
+                    break
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        waiting_for_input = False
+                        break
+            
+            pygame.time.delay(100)
+        
+        print("Encerrando programa após conclusão.")
     
     def calculate_block_statistics(self):
         """Calculate statistics for the current block"""
@@ -565,8 +625,10 @@ class SRTTExperiment:
             correct_rts = [r["reaction_time"] for r in block_results if r["correct"]]
             mean_rt = sum(correct_rts) / len(correct_rts) if correct_rts else 0
             
-            # Calculate accuracy
-            accuracy = (sum(1 for r in block_results if r["correct"]) / len(block_results)) * 100
+            # Calculate accuracy (acertos / total de respostas)
+            total_block_responses = len(block_results)
+            correct_responses = sum(1 for r in block_results if r["correct"])
+            accuracy = (correct_responses / total_block_responses) * 100 if total_block_responses > 0 else 0
             
             block_type = "structured" if self.is_structured_block else "random"
             
@@ -579,50 +641,60 @@ class SRTTExperiment:
     
     def run(self):
         """Run the entire experiment"""
-        # Collect participant info
-        self.collect_participant_info()
-        
-        # Show instructions
-        self.show_instructions()
-        
-        while self.running and self.current_block < self.blocks:
-            # Determine if this is a structured or random block (alternating)
-            self.is_structured_block = (self.current_block % 2 == 0)
+        try:
+            # Collect participant info
+            self.collect_participant_info()
             
-            # Generate block sequence
-            self.block_sequence = self.generate_block_sequence()
+            # Show instructions
+            self.show_instructions()
             
-            # Reset for new block
-            self.current_trial = 0
-            
-            # Run trials for current block
-            while self.current_trial < self.trials_per_block and self.running:
-                # Present trial
-                self.present_trial()
+            while self.running and self.current_block < self.blocks:
+                # Determine if this is a structured or random block (alternating)
+                self.is_structured_block = (self.current_block % 2 == 0)
                 
-                # Move to next trial
-                self.current_trial += 1
+                # Generate block sequence
+                self.block_sequence = self.generate_block_sequence()
+                
+                # Reset for new block
+                self.current_trial = 0
+                
+                # Run trials for current block
+                while self.current_trial < self.trials_per_block and self.running:
+                    # Present trial
+                    self.present_trial()
+                    
+                    # Move to next trial
+                    self.current_trial += 1
+                
+                # Calculate and store block statistics
+                self.calculate_block_statistics()
+                
+                # Move to next block
+                self.current_block += 1
+                
+                # Show break between blocks (if not the last block)
+                if self.current_block < self.blocks and self.running:
+                    self.show_break()
             
-            # Calculate and store block statistics
-            self.calculate_block_statistics()
-            
-            # Move to next block
-            self.current_block += 1
-            
-            # Show break between blocks (if not the last block)
-            if self.current_block < self.blocks and self.running:
-                self.show_break()
-        
-        if self.running:
-            # Save results to file
-            filename = self.save_results()
-            
-            # Show completion screen
-            self.show_completion_screen(filename)
-        
-        pygame.quit()
-        sys.exit()
+            if self.running:
+                # Save results to file
+                filename = self.save_results()
+                
+                # Show completion screen
+                self.show_completion_screen(filename)
+        except Exception as e:
+            # Lidar com exceções para evitar travamentos inesperados
+            print(f"Erro durante o experimento: {e}")
+        finally:
+            # Garantir que o pygame seja finalizado adequadamente
+            pygame.quit()
+            sys.exit()
 
 if __name__ == "__main__":
-    experiment = SRTTExperiment()
-    experiment.run()
+    try:
+        experiment = SRTTExperiment()
+        experiment.run()
+    except Exception as e:
+        print(f"Erro ao iniciar o experimento: {e}")
+        pygame.quit()
+        sys.exit(1)
