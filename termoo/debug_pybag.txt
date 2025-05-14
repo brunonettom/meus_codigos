@@ -1,0 +1,180 @@
+OK
+Please wait
+807: DEV MODE ON [f http: // local host: 8000/ archives/repo/ f]
+655: preload_code (Ien (code) =4971 hint=r/data/data/org. python/ assets/ main .pyr loaderhome=r . f)
+[ r /usr/lib/ python312. zipr ,
+/ usr/lib/ python3. 12' , l/usr/lib/pythona . 12/ lib—dynloadf ,
+/ usr/ li b/ python3 . 12/ site—packages ,
+a/ org . python/assets/ site—packagesr ,
+/ data/ data/ o rg. python/ as sets ,
+200: async repos [ f https://pygame—v,pb.github. i o/ archives/ repo/']
+76: fopen: fetching "https://pygame—web. github. io/archives/ repo/ ison"
+232: http://local host: 80ÜO/#debug
+REDIRECT TO DEV HOST http: // localhost: 8000/ archives/ repo/
+abitag=r cp312
+apitag=r wasm32 bi_emscriptenr
+/ data/ dat
+76:
+650:
+651:
+654:
+392:
+200:
+76:
+232:
+fopen: fetching "https://pygame—web. github. io/archi ves/ repo/ repodata. json"
+FIXME (this is pyodide maintened stuff, use (auto) PEP723 asap)
+referenced packages .
+184
+aio . pep0723. check list aio . pep0723. /data/data/org. python/assets/build/ env )
+— computing required packages —
+, ' pygame . base' ,
+parse_code ( ) patches loaded .
+, panda3d '
+async repos [ 'https://pygame—veb.github. i o/ archives/ repo/']
+fopen: fetching "https://pygame—web. github. io/archives/repo/ . ison"
+http: / / local host : 8 000/ #debug
+REDIRECT TO DEV HOST http: // localhost: 8000/ archives/ repo/
+'textual
+abitag=' cp312 '
+apitag=' wasm32 bi_emscripten'
+56: aio . pepü723. pip_install deps= [ ]
+214: list_imports Ien (code) =4971 file=None hint=f/data/data/org.python/assets/ main
+io . pep0723. Config. pkg_repolist [ O] [ —CDN— ] http://localhost : 80130/ archives/ repo/
+153: scan_imports hint=r/data/data/org. python/assets/ main . pyr filename=r Ien (code) =4971 [ rpygame. base f]
+35:
+82:
+6:
+42:
+54:
+pygarae . base'] kno',nm failed aio. pepü723 . hint
+sea rching pygarae . base
+fopen: fetching "http: // local host : 8000/ archives/ repo/cp312/pygame static—l. Ü—cp312—cp312—wasm32 bi_emscripten. whl#"
+/tmp/pygame_static—l. bi_emscripten. whl installed
+patching pygarae . base
+ygame-ce 2.5. O.devl (SDL 2.28. 4, 3. 12.2)
+ttps : / / git hub . com/pygame—\,i,Eb/pygbag/iss ues / 16
+applying: use aio g reen thread for pygame. time. set timer
+sys._emscripten_info (emscripten_version= (3, 1, 56), runtime='MoziIIa/5.Cl (Wind0'ubE NT 10.0; TJin64 ;
+ke Gecko) Chrome/ 133. 0. CI.Ü
+safari/ 537 . 36 OPR/118. 0. 0. CI' , pthreads=FaIse, shared_memory=EaIse)
+715: starting sheII
+1039: 213 1 ines queued for
+async evaI
+Loading termoo f rom termoo . apk
+Pygbag Version : O. 9.2
+Template Version : O. 9.0
+Python
+. 3.12
+. http: / / local host: 8000/ / archives/ 0. 9/
+CDN URL
+. 128üx720
+Screen
+T itle
+: termoo
+Folder
+: termoo
+Authors .
+x64)
+AppleWebKit/ 537 . 3 6
+(KHTML,
+li
+1
+S PDX—Li cense— Ide nti fie r:
+cookiecutte r. spdx
+1764:
+1830:
+1867:
+651:
+file
+=r/data/data/org. python/ assets/ main_. pyr
+is_py=FaIse hint=rmain. pyr
+local=None source='
+hint=fmain. py'
+local =None source=f
+embed= or sys. debug']
+starting EventTarget in a fev.? seconds
+done .
+now trying user sources
+Python 3. 12.2 (main, Mar 5 2024, 11: 18: 41) [Clang 19. 0. Ogit (https:/github. com/Ilvm/ Ilvml—project aec6aÜ4bBe99b42eca431fcÜb5 on emsc
+ripten
+" copyright " ,
+"credits " or "license" for more information.
+Type "help",
+309: assets found : O
+364: EventTarget delayed by loader
+/data/data/org.python/assets/site—packages/pygame/sysfont. py: 235 :
+ts/fc cache
+warnings. warn (f "no fc cache font cache file at {fc cache }
+* Waiting
+Use rWTarning:
+no fc cache font cache file at / data/ data/ te moo/ asse
+690:
+for media user engagement : please click/touch page
+runpy (main=posixpath ( / data/ data/ termoo/ assets/main. py ) )
+sys._emscripten_info (emscripten_version= (3, 1, 56), runtime='MoziIIa/5.Cl (Wind0'ubE NT 10.0; TJin64 ;
+ke Gecko) Chrome/ 133. 0. CI.Ü
+safari/ 537 . 36 OPR/118. 0. 0. CI' , pthreads=FaIse, shared_memory=EaIse)
+715: starting sheII
+1039: 213 1 ines queued for
+async evaI
+Loading termoo f rom termoo . apk
+Pygbag Version : O. 9.2
+Template Version : O. 9.0
+Python
+. 3.12
+. http: / / local host: 8000/ / archives/ 0. 9/
+CDN URL
+. 128üx720
+Screen
+T itle
+: termoo
+Folder
+: termoo
+Authors .
+x64)
+AppleWebKit/ 537 . 3 6
+(KHTML,
+li
+1
+S PDX—Li cense— Ide nti fie r:
+cookiecutte r. spdx
+1764:
+1830:
+1867:
+651:
+file
+=r/data/data/org. python/ assets/ main_. pyr
+is_py=FaIse hint=rmain. pyr
+local=None source='
+hint=fmain. py'
+local =None source=f
+embed= or sys. debug']
+starting EventTarget in a fev.? seconds
+done .
+now trying user sources
+Python 3. 12.2 (main, Mar 5 2024, 11: 18: 41) [Clang 19. 0. Ogit (https:/github. com/Ilvm/ Ilvml—project aec6aÜ4bBe99b42eca431fcÜb5 on emsc
+ripten
+" copyright " ,
+"credits " or "license" for more information.
+Type "help",
+309: assets found : O
+364: EventTarget delayed by loader
+/data/data/org.python/assets/site—packages/pygame/sysfont. py: 235 :
+ts/fc cache
+warnings. warn (f "no fc cache font cache file at {fc cache }
+* Waiting
+Use rWTarning:
+no fc cache font cache file at / data/ data/ te moo/ asse
+690:
+for media user engagement : please click/touch page
+runpy (main=posixpath ( / data/ data/ termoo/ assets/main. py ) )
+File "/data/data/org. urthon/ assets/ site—packages/ aio/ toplevel. py", line 109,
+vars ( import ( "
+import langcodes
+main " ) ) [want] =
+impo rt (want )
+in impo rt_now
+in
+File "/data/data/org. python/assets/ build/ env/vnrdfreq/ init_.py", line 12,
+odu1 eNotPoundError: No module named langcodes'

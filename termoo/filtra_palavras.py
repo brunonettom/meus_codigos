@@ -3,30 +3,26 @@ Módulo simples para filtrar palavras com base em dificuldade.
 Este é um arquivo de fallback para o jogo Termoo.
 """
 
+from wordfreq import word_frequency
+
 def lista_de_palavras(dificuldade=0.5):
     """
-    Retorna uma lista de palavras com base na dificuldade.
+    Retorna uma lista de palavras filtrada por dificuldade.
     
     Args:
-        dificuldade: um valor de 0 a 1, onde 1 é mais difícil
-        
+        dificuldade (float): Valor entre 0 e 1, onde 0 são palavras mais comuns
+                             e 1 são palavras mais raras.
+                             
     Returns:
-        Uma lista de palavras
+        list: Lista de palavras filtradas por dificuldade
     """
-    # Lista básica de palavras em português
-    palavras = ["abrir", "agora", "amigo", "campo", "carro", "chuva", "dente", "doido", 
-               "festa", "filho", "frase", "gente", "humor", "idade", "ideia", "jovem", 
-               "limpo", "março", "mundo", "natal", "norte", "papel", "pedra", "plano", 
-               "praia", "preto", "prima", "quase", "radio", "roupa", "saude", "sonho", 
-               "tempo", "terra", "texto", "times", "treino", "verde", "viver", "zumbi"]
+    from lista_unificada_20_04_2025__20_32 import palavras
     
-    # Palavras mais difíceis
-    palavras_dificeis = ["advento", "alicerce", "ambíguo", "análogo", "cônjuge", 
-                         "exceção", "esdrúxulo", "efêmero", "idílico", "análise", 
-                         "sintaxe", "conciso", "empírico", "inerente", "perspicaz"]
-    
-    # Adiciona palavras difíceis com base no nível de dificuldade
-    num_palavras_dificeis = int(len(palavras_dificeis) * dificuldade)
-    palavras.extend(palavras_dificeis[:num_palavras_dificeis])
-    
-    return palavras
+    if dificuldade <= 0:
+        return palavras[:int(len(palavras) * 0.1)]  # 10% mais comuns
+    elif dificuldade >= 1:
+        return palavras[int(len(palavras) * 0.9):]  # 10% mais raras
+    else:
+        # Calcula índice com base na dificuldade
+        indice_corte = int(len(palavras) * dificuldade)
+        return palavras[:indice_corte]
