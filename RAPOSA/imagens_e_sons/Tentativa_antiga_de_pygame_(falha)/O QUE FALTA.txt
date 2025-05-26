@@ -1,0 +1,37 @@
+- colocar as referências dos códigos
+- criar o codigo do mapa - mapa já criado - ENCARREGADO: ARCANJO
+    - desenhar o mapa no python - FEITO
+        - redesenhar, levando em conta o movimento de rotação do personagem
+    - fazer com que os espinhos assumam as posições correspondentes
+    - orientar os blocos da plataforma
+    - entender como funciona a criação e implementação do código - ENCARREGADO: ARCANJO
+
+- criar os sprites das animacoes
+    - parado - NÃO PRECISOU  - FEITO - BRUNO
+    - pulando - NÃO PRECISOU - FEITO - BRUNO
+    - morrendo               - FEITO - BRUNO
+    -- colocar as animações no jogo, respeitando as codições que deveriam ser compridas para que cada uma aconteça - FEITO - BRUNO
+- animação do plano de fundo - ENCARREGADO - ARCANJO
+- acertar o caminho para os arquivos - FEITO - ARCANJO
+- apagar os codigos que levam a arquivos que não existem - como os que foram substituidos por animações - FEITO - BRUNO
+- só quando o personagem pegar todas as galinhas que ele vai poder seguir a fase - sistema de pontos - FEITO - BRUNO
+- comentar as coisas - FEITO - BRUNO
+- ajeitar para ver a imagem certa da animacao - para que o  i resete - DEITO - BRUNO
+
+
+- discutir o nome  - fox raposa ou fox, a raposa
+
+PARA DEPOIS DE RODARMOS O JOGO:
+- decidir a velocidade de rotacao da raposa - talvez seja necessario aumentar o mapa para caber o giro
+- acertar o volume do jogo
+- acertar o tamanho das coisas
+- 
+
+
+
+IDEIA:
+- poder escolher a fase que vai jogar - DESCARTADA
+
+
+SE SOBRAR TEMPO
+- fazer com que ele gire em uma velocidade proporcional à distância que ele está caindo 

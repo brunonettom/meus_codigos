@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Clone iFood Corrigido</title>
+  <style>
+    /* RESET */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; color: #333; line-height: 1.4; }
+    a { text-decoration: none; color: inherit; }
+    
+    /* HEADER */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .logo { font-size: 24px; font-weight: bold; color: #E9042B; }
+    nav ul {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+    }
+    .search-bar {
+      flex: 1;
+      margin: 0 20px;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .user-icons {
+      display: flex;
+      gap: 15px;
+    }
+    .user-icons img {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* BANNER */
+    .banner-cupons {
+      background: #2BAB56;
+      color: #fff;
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    main { padding: 20px; }
+
+    /* Seções sliders */
+    .slider {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      scrollbar-width: none;
+    }
+    .slider::-webkit-scrollbar { display: none; }
+
+    /* CATEGORIAS */
+    .categorias .categoria {
+      flex: 0 0 auto;
+      text-align: center;
+      width: 100px;
+    }
+    .categoria img { width: 80px; height: 80px; }
+
+    /* CARROSSEL PROMO */
+    .carousel .item {
+      flex: 0 0 auto;
+      width: 200px;
+    }
+    .carousel img { width: 100%; height: 120px; object-fit: cover; }
+
+    /* PROMOÇÕES GRÁTIS */
+    .promo-gratis .card {
+      flex: 0 0 auto;
+      width: 150px;
+      text-align: center;
+    }
+    .promo-gratis img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+    }
+    .promo-gratis p { margin: 5px 0; font-size: 14px; }
+
+    /* LINHAS DE LOJAS E MAIS CATEGORIAS */
+    .linha-lojas .item,
+    .mais-categorias .categoria {
+      flex: 0 0 auto;
+      text-align: center;
+      width: 120px;
+    }
+    .linha-lojas img,
+    .mais-categorias img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+    }
+    .linha-lojas p,
+    .mais-categorias p { margin-top: 5px; font-size: 13px; }
+
+    /* FILTROS */
+    .filtros {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .filtros button {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* LISTA DE LOJAS */
+    .lista-lojas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: space-between;
+    }
+    .lista-lojas .card {
+      flex: 0 0 calc(33.333% - 20px);
+      border: 1px solid #eee;
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+    }
+    .lista-lojas img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      margin-bottom: 10px;
+    }
+    .lista-lojas p { font-size: 14px; margin: 5px 0; }
+
+    /* FOOTER */
+    footer {
+      background: #f8f8f8;
+      border-top: 1px solid #eee;
+      font-size: 13px;
+      color: #555;
+    }
+    .footer-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 40px;
+      justify-content: center;
+      padding: 20px;
+    }
+    .footer-top div ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .footer-social {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .footer-social img { width: 24px; height: 24px; }
+    .footer-bottom {
+      text-align: center;
+      padding: 10px 20px;
+      font-size: 12px;
+      color: #777;
+      line-height: 1.3;
+    }
+    .footer-bottom a { margin: 0 5px; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">iFood</div>
+    <nav>
+      <ul>
+        <li><a href="#">Início</a></li>
+        <li><a href="#">Restaurantes</a></li>
+        <li><a href="#">Mercados</a></li>
+        <li><a href="#">Bebidas</a></li>
+        <li><a href="#">Farmácias</a></li>
+        <li><a href="#">Pets</a></li>
+        <li><a href="#">Shopping</a></li>
+      </ul>
+    </nav>
+    <div class="search-bar">
+      <input type="text" placeholder="Busque por item ou loja"/>
+    </div>
+    <div class="user-icons">
+      <img src="https://via.placeholder.com/24?text=📍" alt="Localização"/>
+      <img src="https://via.placeholder.com/24?text=👤" alt="Usuário"/>
+      <img src="https://via.placeholder.com/24?text=🛒" alt="Carrinho"/>
+    </div>
+  </header>
+
+  <!-- BANNER -->
+  <div class="banner-cupons">
+    Você tem 198 cupons! Aproveite seus descontos
+  </div>
+
+  <main>
+    <!-- CATEGORIAS -->
+    <section>
+      <h2>Pedir seu delivery no iFood é rápido e prático! Conheça as categorias</h2>
+      <div class="slider categorias">
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Restaurantes" alt="Restaurantes"/>
+          <p>Restaurantes</p>
+        </div>
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Mercado" alt="Mercado"/>
+          <p>Mercado</p>
+        </div>
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Farmácia" alt="Farmácia"/>
+          <p>Farmácia</p>
+        </div>
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Pet" alt="Pet"/>
+          <p>Pet</p>
+        </div>
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Clube+iFood" alt="Clube iFood"/>
+          <p>Clube iFood</p>
+        </div>
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Bebidas" alt="Bebidas"/>
+          <p>Bebidas</p>
+        </div>
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Shopping" alt="Shopping"/>
+          <p>Shopping</p>
+        </div>
+        <div class="categoria">
+          <img src="https://via.placeholder.com/80?text=Gourmet" alt="Gourmet"/>
+          <p>Gourmet</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARROSSEL DE PROMOÇÕES -->
+    <section>
+      <h2>Promoções em destaque</h2>
+      <div class="slider carousel">
+        <div class="item">
+          <img src="https://via.placeholder.com/200x120?text=Promo+1" alt="Promoção 1"/>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/200x120?text=Promo+2" alt="Promoção 2"/>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/200x120?text=Promo+3" alt="Promoção 3"/>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/200x120?text=Promo+4" alt="Promoção 4"/>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/200x120?text=Promo+5" alt="Promoção 5"/>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROMOÇÕES GRÁTIS -->
+    <section>
+      <h2>Promoções com entrega grátis</h2>
+      <div class="slider promo-gratis">
+        <div class="card">
+          <img src="https://via.placeholder.com/150x100?text=Parmigiana" alt="Parmigiana de Carne"/>
+          <p>Parmigiana de Carne + Arroz & Batata Chips</p>
+          <p><strong>R$ 29,99</strong></p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/150x100?text=Frango" alt="Parmegiana de Frango"/>
+          <p>Parmegiana de Frango</p>
+          <p><strong>R$ 44,93</strong> <del>R$ 79,90</del></p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/150x100?text=Filé" alt="Filé de Baby Beef Grelhado + Arroz & Feijão"/>
+          <p>Filé de Baby Beef Grelhado + Arroz & Feijão</p>
+          <p><strong>R$ 26,64</strong> <del>R$ 58,90</del></p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/150x100?text=Poke" alt="Poke Hawai"/>
+          <p>Poke Hawai</p>
+          <p><strong>R$ 35,12</strong> <del>R$ 59,90</del></p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/150x100?text=Milaneza" alt="Milaneza de Carne + Purê"/>
+          <p>Milaneza de Carne + Purê</p>
+          <p><strong>R$ 29,24</strong> <del>R$ 65,90</del></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CUPOM E ÚLTIMAS LOJAS -->
+    <section>
+      <h2>Cupom e entrega grátis</h2>
+      <div class="slider linha-lojas">
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Picanharia" alt="Picanharia dos Amigos"/>
+          <p>Restaurante Picanharia dos Amigos Campo Belo</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Marmitaria" alt="Marmitaria - Brooklin"/>
+          <p>Marmitaria – Brooklin</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Gusto" alt="Gusto Di Parma"/>
+          <p>Gusto Di Parma – Brooklin</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=China+in+Box" alt="China in Box"/>
+          <p>China in Box – Brooklin</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Filetto" alt="Filetto – Brooklin"/>
+          <p>Filetto – Brooklin</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Últimas lojas</h2>
+      <div class="slider linha-lojas">
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Habibs" alt="Habib's"/>
+          <p>Habib's – Vieira de Morais</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Cabana" alt="Cabana Burger"/>
+          <p>Cabana Burger – Moema</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Cupom de até R$50 em Mercado</h2>
+      <div class="slider linha-lojas">
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Carrefour" alt="Carrefour Express"/>
+          <p>27–37 min • R$ 10,99</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Natural" alt="Natural da Terra"/>
+          <p>27–37 min • R$ 12,99</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Sítio" alt="Sítio Verde"/>
+          <p>27–37 min • R$ 12,49</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Mini+Extra" alt="Mini Extra"/>
+          <p>27–37 min • R$ 10,99</p>
+        </div>
+        <div class="item">
+          <img src="https://via.placeholder.com/80?text=Hirota" alt="Hirota Food"/>
+          <p>27–37 min • R$ 12,99</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAMOSOS E MAIS CATEGORIAS -->
+    <section>
+      <h2>Famosos no iFood</h2>
+      <div class="slider linha-lojas">
+        <div class="item"><img src="https://via.placeholder.com/80?text=Picanharia" alt="Picanharia dos Amigos"/></div>
+        <div class="item"><img src="https://via.placeholder.com/80?text=Marmitaria" alt="Marmitaria – Brooklin"/></div>
+        <div class="item"><img src="https://via.placeholder.com/80?text=Gusto" alt="Gusto Di Parma"/></div>
+        <div class="item"><img src="https://via.placeholder.com/80?text=McDonalds" alt="McDonald's"/></div>
+        <div class="item"><img src="https://via.placeholder.com/80?text=China+Box" alt="China in Box"/></div>
+        <div class="item"><img src="https://via.placeholder.com/80?text=Burger+King" alt="Burger King"/></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Mais iFood pra você</h2>
+      <div class="slider mais-categorias">
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Mercado" alt="Mercado"/><p>Mercado</p></div>
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Brasileira" alt="Brasileira"/><p>Brasileira</p></div>
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Promoções" alt="Promoções"/><p>Promoções</p></div>
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Lanches" alt="Lanches"/><p>Lanches</p></div>
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Doces" alt="Doces & Bolos"/><p>Doces & Bolos</p></div>
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Açaí" alt="Açaí"/><p>Açaí</p></div>
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Marmita" alt="Marmita"/><p>Marmita</p></div>
+        <div class="categoria"><img src="https://via.placeholder.com/80?text=Saudável" alt="Saudável"/><p>Saudável</p></div>
+      </div>
+    </section>
+
+    <!-- FILTROS -->
+    <section class="filtros">
+      <button>Ordenar ▼</button>
+      <button>Entrega Grátis</button>
+      <button>Vale-refeição ▼</button>
+      <button>Distância ▼</button>
+      <button>Entrega Parceira</button>
+      <button>Super Restaurantes</button>
+      <button>Filtros ≡</button>
+      <button>Limpar</button>
+    </section>
+
+    <!-- LISTA DE LOJAS -->
+    <section>
+      <h2>Lojas</h2>
+      <div class="lista-lojas">
+        <div class="card">
+          <img src="https://via.placeholder.com/200x100?text=Picanharia+dos+Amigos" alt="Picanharia dos Amigos"/>
+          <p><strong>Restaurante Picanharia dos Amigos</strong></p>
+          <p>Brasileira • 1,5 km • 35–45 min • Grátis</p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/200x100?text=Marmitaria+Moema" alt="Marmitaria Moema"/>
+          <p><strong>Marmitaria Moema</strong></p>
+          <p>Marmita • 2,0 km • 30–40 min • Grátis</p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/200x100?text=Gusto+Di+Parma" alt="Gusto Di Parma"/>
+          <p><strong>Gusto Di Parma</strong></p>
+          <p>Brasileira • 0,7 km • 27–37 min • Grátis</p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/200x100?text=McDonalds" alt="McDonald's"/>
+          <p><strong>McDonald's</strong></p>
+          <p>Lanches • 1,3 km • 33–43 min • R$ 10,99</p>
+        </div>
+        <div class="card">
+          <img src="https://via.placeholder.com/200x100?text=Burger+King" alt="Burger King"/>
+          <p><strong>Burger King</strong></p>
+          <p>Lanches • 1,7 km • 17–27 min • R$ 10,99</p>
+        </div>
+      </div>
+      <p style="text-align:center; margin-top:10px;"><a href="#">Ver mais</a></p>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-top">
+      <div>
+        <h4>iFood</h4>
+        <ul>
+          <li><a href="#">Site Institucional</a></li>
+          <li><a href="#">Fale Conosco</a></li>
+          <li><a href="#">Conta e Segurança</a></li>
+          <li><a href="#">Carreiras</a></li>
+          <li><a href="#">Entregadores</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Descubra</h4>
+        <ul>
+          <li><a href="#">Cadastre seu Restaurante ou Mercado</a></li>
+          <li><a href="#">iFood Shop</a></li>
+          <li><a href="#">iFood Empresas</a></li>
+          <li><a href="#">Blog iFood Empresas</a></li>
+        </ul>
+      </div>
+      <div class="footer-social">
+        <h4>Social</h4>
+        <a href="#"><img src="https://via.placeholder.com/24?text=F" alt="Facebook"/></a>
+        <a href="#"><img src="https://via.placeholder.com/24?text=T" alt="Twitter"/></a>
+        <a href="#"><img src="https://via.placeholder.com/24?text=Y" alt="YouTube"/></a>
+        <a href="#"><img src="https://via.placeholder.com/24?text=I" alt="Instagram"/></a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2021 iFood – Todos os direitos reservados · iFood com Agência de Restaurantes Online S.A.  
+      CNPJ 14.380.200/0001‑21 · Av. dos Autonomistas, 1496, Vila Yara, Osasco/SP · CEP 06.020‑902  
+      <br>
+      <a href="#">Termos e condições de uso</a> |
+      <a href="#">Código de conduta</a> |
+      <a href="#">Privacidade</a> |
+      <a href="#">Dicas de segurança</a>
+    </div>
+  </footer>
+
+</body>
+</html>
