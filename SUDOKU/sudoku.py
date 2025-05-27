@@ -38,6 +38,24 @@ NUMERIC_KEYS = {
     pygame.K_KP5: 5, pygame.K_KP6: 6, pygame.K_KP7: 7, pygame.K_KP8: 8, pygame.K_KP9: 9
 }
 
+# Teclas de navegação
+ARROW_KEYS = {
+    pygame.K_UP: (-1, 0),     # Cima
+    pygame.K_DOWN: (1, 0),    # Baixo
+    pygame.K_LEFT: (0, -1),   # Esquerda
+    pygame.K_RIGHT: (0, 1),   # Direita
+    pygame.K_w: (-1, 0),      # W - Cima
+    pygame.K_s: (1, 0),       # S - Baixo
+    pygame.K_a: (0, -1),      # A - Esquerda
+    pygame.K_d: (0, 1)        # D - Direita
+}
+
+# Botão de dicas
+HINT_BUTTON = pygame.Rect(WIDTH // 2 - 70, HEIGHT - 45, 140, 30)
+
+# Estado das dicas
+HINTS_ENABLED = False
+
 # Imagem de coração (vida)
 heart_img = pygame.Surface((30, 30), pygame.SRCALPHA)
 pygame.draw.polygon(heart_img, RED, [(15, 5), (25, 15), (15, 25), (5, 15)])
@@ -58,8 +76,16 @@ class Sudoku:
         self.lives = 3
         self.difficulty = difficulty
         self.solution = None
-        self.generate_puzzle()
+        self.saved_notes = None  # Para guardar o estado anterior das dicas
         
+        # Histórico para undo/redo
+        self.history = []
+        self.future = []
+        
+        # Primeiro gera o puzzle, depois salva o estado inicial
+        self.generate_puzzle()
+        self.save_state()  # Salva o estado inicial após gerar o puzzle, não antes
+    
     def is_valid(self, row, col, num):
         # Verifica se o número é válido na linha
         for x in range(GRID_SIZE):
@@ -174,6 +200,131 @@ class Sudoku:
         self.lives -= 1
         return self.lives <= 0
 
+    def update_notes(self):
+        """Atualiza automaticamente as anotações de todas as células"""
+        # Percorre todas as células do tabuleiro
+        for row in range(GRID_SIZE):
+            for col in range(GRID_SIZE):
+                # Pula células já preenchidas
+                if self.board[row][col] != 0:
+                    self.notes[row][col].clear()
+                    continue
+                
+                # Se a célula está vazia, atualiza suas anotações
+                # Primeiro verifica se já tem anotações, caso não tenha, adiciona todas possibilidades
+                if not self.notes[row][col]:
+                    self.notes[row][col] = set(range(1, 10))
+                
+                # Remove números que já aparecem na linha, coluna ou quadrado 3x3
+                # Linha
+                for x in range(GRID_SIZE):
+                    if self.board[row][x] != 0 and self.board[row][x] in self.notes[row][col]:
+                        self.notes[row][col].remove(self.board[row][x])
+                
+                # Coluna
+                for x in range(GRID_SIZE):
+                    if self.board[x][col] != 0 and self.board[x][col] in self.notes[row][col]:
+                        self.notes[row][col].remove(self.board[x][col])
+                
+                # Quadrado 3x3
+                start_row, start_col = 3 * (row // 3), 3 * (col // 3)
+                for i in range(3):
+                    for j in range(3):
+                        r, c = start_row + i, start_col + j
+                        if self.board[r][c] != 0 and self.board[r][c] in self.notes[row][col]:
+                            self.notes[row][col].remove(self.board[r][c])
+
+    def save_state(self):
+        """Salva o estado atual do tabuleiro e notas no histórico"""
+        # Copia o tabuleiro atual e as notas
+        board_copy = [row[:] for row in self.board]
+        notes_copy = [[self.notes[row][col].copy() for col in range(GRID_SIZE)] for row in range(GRID_SIZE)]
+        
+        # Adiciona ao histórico
+        self.history.append({
+            'board': board_copy,
+            'notes': notes_copy,
+            'hints_enabled': HINTS_ENABLED  # Salva também o estado das dicas
+        })
+        
+        # Limpa o futuro ao fazer uma nova ação
+        self.future = []
+        
+        # Limita o tamanho do histórico para evitar uso excessivo de memória
+        if len(self.history) > 100:
+            self.history.pop(0)
+
+    def undo(self):
+        """Desfaz a última jogada"""
+        global HINTS_ENABLED
+        
+        if len(self.history) <= 1:
+            return False  # Não há o que desfazer
+        
+        # Move o estado atual para o futuro
+        current_state = self.history.pop()
+        self.future.append(current_state)
+        
+        # Restaura o estado anterior
+        previous_state = self.history[-1]
+        self.board = [row[:] for row in previous_state['board']]
+        self.notes = [[previous_state['notes'][row][col].copy() for col in range(GRID_SIZE)] for row in range(GRID_SIZE)]
+        
+        # Restaura o estado das dicas se estiver armazenado
+        if 'hints_enabled' in previous_state:
+            HINTS_ENABLED = previous_state['hints_enabled']
+        
+        return True
+
+    def redo(self):
+        """Refaz a última jogada desfeita"""
+        global HINTS_ENABLED
+        
+        if not self.future:
+            return False  # Não há o que refazer
+        
+        # Restaura o próximo estado
+        next_state = self.future.pop()
+        self.history.append(next_state)
+        
+        # Aplica o estado
+        self.board = [row[:] for row in next_state['board']]
+        self.notes = [[next_state['notes'][row][col].copy() for col in range(GRID_SIZE)] for row in range(GRID_SIZE)]
+        
+        # Restaura o estado das dicas se estiver armazenado
+        if 'hints_enabled' in next_state:
+            HINTS_ENABLED = next_state['hints_enabled']
+        
+        return True
+
+    def toggle_notes(self):
+        """Alterna entre mostrar e esconder as dicas"""
+        global HINTS_ENABLED
+        
+        # Salvar o estado antes de alterá-lo
+        self.save_state()
+        
+        if not HINTS_ENABLED:  # Se as dicas estiverem desativadas, vamos ativá-las
+            # Guarda o estado atual das anotações
+            self.saved_notes = [[self.notes[row][col].copy() for col in range(GRID_SIZE)] for row in range(GRID_SIZE)]
+            # Atualiza as anotações conforme as regras do Sudoku
+            self.update_notes()
+            HINTS_ENABLED = True
+        else:  # Se as dicas estiverem ativadas, vamos desativá-las
+            # Restaura o estado anterior das anotações, se disponível
+            if self.saved_notes is not None:
+                self.notes = [[self.saved_notes[row][col].copy() for col in range(GRID_SIZE)] for row in range(GRID_SIZE)]
+            else:
+                # Limpa todas as anotações se não houver estado salvo
+                self.notes = [[set() for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+            HINTS_ENABLED = False
+            
+    # Adicionar método para atualizar as dicas quando necessário
+    def update_if_hints_enabled(self):
+        """Atualiza as dicas automaticamente se estiverem habilitadas"""
+        if HINTS_ENABLED:
+            self.update_notes()
+
 def draw_grid():
     # Desenha as linhas do grid
     for i in range(GRID_SIZE + 1):
@@ -237,6 +388,14 @@ def draw_status_bar(message, color=BLACK):
     pygame.draw.rect(screen, GRAY, (0, HEIGHT - 60, WIDTH, 60))
     status_text = small_font.render(message, True, color)
     screen.blit(status_text, (10, HEIGHT - 40))
+    
+    # Desenha o botão de dicas com texto apropriado
+    button_color = LIGHT_BLUE if not HINTS_ENABLED else (150, 255, 150)  # Verde claro se ativado
+    pygame.draw.rect(screen, button_color, HINT_BUTTON)
+    pygame.draw.rect(screen, BLACK, HINT_BUTTON, 2)
+    
+    hint_text = small_font.render("Dicas " + ("ON" if HINTS_ENABLED else "OFF"), True, BLACK)
+    screen.blit(hint_text, (WIDTH // 2 - hint_text.get_width() // 2, HEIGHT - 45 + (30 - hint_text.get_height()) // 2))
 
 def draw_lives(sudoku):
     # Desenha os corações representando as vidas
@@ -287,27 +446,28 @@ def draw_game_over(sudoku):
     
     # Mensagem de game over
     game_over_text = large_font.render("GAME OVER", True, RED)
-    screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, 150))
+    screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, 80))
     
     # Instruções
     press_any_key = small_font.render("Pressione qualquer tecla para voltar ao menu", True, WHITE)
-    screen.blit(press_any_key, (WIDTH // 2 - press_any_key.get_width() // 2, 220))
+    screen.blit(press_any_key, (WIDTH // 2 - press_any_key.get_width() // 2, 130))
     
     # Mostra a solução correta
     solution_text = medium_font.render("Solução:", True, WHITE)
-    screen.blit(solution_text, (WIDTH // 2 - solution_text.get_width() // 2, 280))
+    screen.blit(solution_text, (WIDTH // 2 - solution_text.get_width() // 2, 170))
     
-    # Desenha o tabuleiro resolvido
-    cell_size_small = CELL_SIZE * 0.6
+    # Desenha o tabuleiro resolvido em tamanho reduzido para caber na tela
+    cell_size_small = CELL_SIZE * 0.5  # Reduzido para 50% do tamanho original
     for i in range(9):
         for j in range(9):
             value = sudoku.solution[i][j]
             # Calcula posição para tabuleiro centralizado e menor
             x = WIDTH // 2 - (cell_size_small * 9) // 2 + j * cell_size_small
-            y = 320 + i * cell_size_small
+            y = 200 + i * cell_size_small
             
-            # Desenha o número
-            num_surface = small_font.render(str(value), True, WHITE)
+            # Desenha o número em fonte menor
+            mini_font = pygame.font.SysFont("Arial", 12)
+            num_surface = mini_font.render(str(value), True, WHITE)
             screen.blit(num_surface, (x + (cell_size_small - num_surface.get_width()) // 2, 
                                      y + (cell_size_small - num_surface.get_height()) // 2))
             
@@ -315,7 +475,7 @@ def draw_game_over(sudoku):
     for i in range(10):
         line_width = 2 if i % 3 == 0 else 1
         x = WIDTH // 2 - (cell_size_small * 9) // 2 + i * cell_size_small
-        y = 320
+        y = 200
         pygame.draw.line(screen, WHITE, (x, y), (x, y + cell_size_small * 9), line_width)
         pygame.draw.line(screen, WHITE, (WIDTH // 2 - (cell_size_small * 9) // 2, y + i * cell_size_small),
                          (WIDTH // 2 + (cell_size_small * 9) // 2, y + i * cell_size_small), line_width)
@@ -351,7 +511,13 @@ def main():
             screen.fill(WHITE)
             draw_grid()
             draw_numbers(sudoku)
-            selected_cell = draw_selected_cell(selected_pos, sudoku)
+            
+            # Gerencia a célula selecionada
+            if selected_pos:
+                selected_cell = draw_selected_cell(selected_pos, sudoku)
+            else:
+                selected_cell = None
+                
             draw_status_bar(message)
             draw_lives(sudoku)
             
@@ -361,7 +527,12 @@ def main():
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         mouse_pos = pygame.mouse.get_pos()
-                        if mouse_pos[1] < HEIGHT - 60:
+                        # Verifica se clicou no botão de dicas
+                        if HINT_BUTTON.collidepoint(mouse_pos):
+                            sudoku.toggle_notes()
+                            message = f"Dicas {'ativadas' if HINTS_ENABLED else 'desativadas'}!"
+                        # Verifica se clicou no tabuleiro
+                        elif mouse_pos[1] < HEIGHT - 60:
                             selected_pos = mouse_pos
                             col, row = mouse_pos[0] // CELL_SIZE, mouse_pos[1] // CELL_SIZE
                             if 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
@@ -376,12 +547,60 @@ def main():
                                     sudoku.highlight_number = None
                             message = "Digite um número (1-9) para preencher. Shift+1..9 para anotar."
                 elif event.type == pygame.KEYDOWN:
+                    # Navegação com setas
+                    if event.key in ARROW_KEYS:
+                        if selected_pos is None:
+                            # Se nenhuma célula estiver selecionada, começa na primeira célula
+                            selected_pos = (CELL_SIZE // 2, CELL_SIZE // 2)
+                        else:
+                            # Calcula a célula atual
+                            col, row = selected_pos[0] // CELL_SIZE, selected_pos[1] // CELL_SIZE
+                            
+                            # Move para a próxima célula na direção indicada
+                            drow, dcol = ARROW_KEYS[event.key]
+                            new_row = max(0, min(GRID_SIZE - 1, row + drow))
+                            new_col = max(0, min(GRID_SIZE - 1, col + dcol))
+                            
+                            # Atualiza a posição selecionada
+                            selected_pos = (new_col * CELL_SIZE + CELL_SIZE // 2, 
+                                           new_row * CELL_SIZE + CELL_SIZE // 2)
+                            
+
+                            message = f"Célula selecionada: ({new_row+1}, {new_col+1})"
+                    
+                    # Processamento de entrada numérica e outras teclas
                     if selected_cell:
                         row, col = selected_cell
+                        # Corrigido: detecta shift + teclado numérico corretamente
+                        mods = pygame.key.get_mods()
+                        is_shift_pressed = mods & pygame.KMOD_SHIFT
+                        is_ctrl_pressed = mods & pygame.KMOD_CTRL
+                        
+                        # Verifica se é Ctrl+Z (desfazer) ou Ctrl+Shift+Z (refazer)
+                        if is_ctrl_pressed:
+                            if event.key == pygame.K_z:
+                                if is_shift_pressed:
+                                    # Ctrl+Shift+Z = Refazer
+                                    if sudoku.redo():
+                                        message = "Ação refeita"
+                                    else:
+                                        message = "Não há ações para refazer"
+                                else:
+                                    # Ctrl+Z = Desfazer
+                                    if sudoku.undo():
+                                        message = "Ação desfeita"
+                                    else:
+                                        message = "Não há ações para desfazer"
+                                continue
+                        
                         # Anotação: Shift+número (incluindo teclado numérico)
-                        if event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0 and (pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                        if event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0 and is_shift_pressed and not is_ctrl_pressed:
                             num = NUMERIC_KEYS[event.key]
                             if sudoku.original_board[row][col] == 0 and sudoku.board[row][col] == 0:
+                                # Salva o estado antes de modificar
+                                sudoku.save_state()
+                                
+
                                 if num in sudoku.notes[row][col]:
                                     sudoku.notes[row][col].remove(num)
                                 else:
@@ -389,6 +608,9 @@ def main():
                                 message = f"Anotação {num} {'removida' if num not in sudoku.notes[row][col] else 'adicionada'}."
                         # Preenchimento normal (incluindo teclado numérico)
                         elif event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0:
+                            # Salva o estado antes de tentar inserir um número
+                            sudoku.save_state()
+                            
                             num = NUMERIC_KEYS[event.key]
                             if sudoku.original_board[row][col] == 0:
                                 correct_num = sudoku.solution[row][col]
@@ -396,6 +618,8 @@ def main():
                                 if num == correct_num:  # Resposta correta
                                     sudoku.board[row][col] = num
                                     sudoku.notes[row][col].clear()
+                                    # Atualiza as dicas automaticamente quando inserimos um número correto
+                                    sudoku.update_if_hints_enabled()
                                     message = f"Número {num} inserido corretamente!"
                                 else:  # Resposta errada
                                     if sudoku.lose_life():  # Perde uma vida
@@ -405,8 +629,13 @@ def main():
                                         message = f"Número errado! Você perdeu uma vida! ({sudoku.lives} restantes)"
                         elif event.key in (pygame.K_DELETE, pygame.K_BACKSPACE):
                             if sudoku.original_board[row][col] == 0:
+                                # Salva o estado antes de apagar
+                                sudoku.save_state()
+                                
                                 sudoku.board[row][col] = 0
                                 sudoku.notes[row][col].clear()
+                                # Atualiza as dicas automaticamente quando removemos um número
+                                sudoku.update_if_hints_enabled()
                                 message = "Número apagado."
                     # Tecla V para verificar se o tabuleiro está completo
                     elif event.key == pygame.K_v:
