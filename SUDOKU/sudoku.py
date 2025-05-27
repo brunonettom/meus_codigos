@@ -16,17 +16,27 @@ GREEN = (0, 255, 0)
 DARK_GRAY = (100, 100, 100)
 HIGHLIGHT_GRAY = (150, 150, 220)  # Cor para destacar anotações
 
-# Configurações da tela
-WIDTH, HEIGHT = 540, 600
-GRID_SIZE = 9
-CELL_SIZE = WIDTH // GRID_SIZE
-FONT_SIZE = 36
+# Configurações iniciais da tela
+INITIAL_WIDTH, INITIAL_HEIGHT = 540, 600
+MIN_WIDTH, MIN_HEIGHT = 540, 600  # Tamanhos mínimos da janela
 
-# Configuração da janela
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+# Configuração da janela redimensionável
+screen = pygame.display.set_mode((INITIAL_WIDTH, INITIAL_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Sudoku")
 
-# Fontes
+# Variáveis globais para dimensões atuais da tela
+WIDTH, HEIGHT = INITIAL_WIDTH, INITIAL_HEIGHT
+GRID_SIZE = 9
+# Controle de exibição do tabuleiro
+board_offset_x = 0
+board_offset_y = 0
+MAX_CELL_SIZE = 80  # Tamanho máximo para as células
+MIN_CELL_SIZE = 40  # Tamanho mínimo para as células
+CELL_SIZE = WIDTH // GRID_SIZE  # Será recalculado em update_dimensions
+FONT_SIZE = 36
+STATUS_BAR_HEIGHT = 60
+
+# Fontes - serão redefinidas em update_dimensions
 font = pygame.font.SysFont("Arial", FONT_SIZE)
 small_font = pygame.font.SysFont("Arial", 20)
 medium_font = pygame.font.SysFont("Arial", 28)
@@ -53,9 +63,9 @@ ARROW_KEYS = {
 }
 
 # Botão de dicas
-HINT_BUTTON = pygame.Rect(WIDTH // 2 - 70, HEIGHT - 45, 140, 30)
+HINT_BUTTON = pygame.Rect(WIDTH // 2 - 70, HEIGHT - STATUS_BAR_HEIGHT + 15, 140, 30)
 # Botão de dica única
-SOLVE_HINT_BUTTON = pygame.Rect(WIDTH // 2 - 70 - 150, HEIGHT - 45, 140, 30)
+SOLVE_HINT_BUTTON = pygame.Rect(WIDTH // 2 - 70 - 150, HEIGHT - STATUS_BAR_HEIGHT + 15, 140, 30)
 
 # Estado das dicas
 HINTS_ENABLED = False
@@ -68,6 +78,8 @@ MENU = 0
 PLAYING = 1
 GAME_OVER = 2
 VICTORY = 3  # Novo estado para tela de vitória
+HINT_MODE = 4  # Novo estado para modo de seleção de dica
+FULLSCREEN = False  # Estado para controlar tela cheia
 
 # Imagem de coração (vida)
 heart_img = pygame.Surface((30, 30), pygame.SRCALPHA)
@@ -333,28 +345,120 @@ class Sudoku:
         if HINTS_ENABLED:
             self.update_notes()
 
-    def get_hint(self):
+    def get_hint(self, row=None, col=None):
         """Fornece uma dica preenchendo uma célula vazia com o valor correto"""
-        # Procura por células vazias
+        # Se row e col forem fornecidos, dá dica para célula específica
+        if row is not None and col is not None:
+            if self.board[row][col] == 0:  # Verifica se a célula está vazia
+                self.save_state()  # Salva o estado para poder desfazer
+                self.board[row][col] = self.solution[row][col]
+                self.notes[row][col].clear()
+                self.update_if_hints_enabled()
+                return (row, col, self.solution[row][col])
+            return False  # Célula não está vazia
+            
+        # Comportamento original - escolhe célula aleatória
         empty_cells = []
-        for row in range(GRID_SIZE):
-            for col in range(GRID_SIZE):
-                if self.board[row][col] == 0:
-                    empty_cells.append((row, col))
+        for r in range(GRID_SIZE):
+            for c in range(GRID_SIZE):
+                if self.board[r][c] == 0:
+                    empty_cells.append((r, c))
         
         if not empty_cells:
             return False  # Não há células vazias
             
         # Escolhe uma célula vazia aleatória
-        row, col = random.choice(empty_cells)
+        r, c = random.choice(empty_cells)
         
         # Preenche com o valor correto
-        self.save_state()  # Salva o estado para poder desfazer
-        self.board[row][col] = self.solution[row][col]
-        self.notes[row][col].clear()
-        self.update_if_hints_enabled()  # Atualiza as dicas
+        self.save_state()
+        self.board[r][c] = self.solution[r][c]
+        self.notes[r][c].clear()
+        self.update_if_hints_enabled()
         
-        return (row, col, self.solution[row][col])  # Retorna a posição e o valor preenchido
+        return (r, c, self.solution[r][c])
+
+def update_dimensions(new_width, new_height):
+    """Atualiza as dimensões da janela e recalcula outros valores dependentes"""
+    global WIDTH, HEIGHT, CELL_SIZE, HINT_BUTTON, SOLVE_HINT_BUTTON, board_offset_x, board_offset_y, font, small_font, medium_font, large_font, FONT_SIZE
+    
+    WIDTH = max(new_width, MIN_WIDTH)
+    HEIGHT = max(new_height, MIN_HEIGHT)
+    
+    # Calcula o tamanho da célula baseado no espaço disponível
+    available_size_x = WIDTH // GRID_SIZE
+    available_size_y = (HEIGHT - STATUS_BAR_HEIGHT) // GRID_SIZE
+    
+    # Determina o tamanho da célula (mantendo-o quadrado)
+    CELL_SIZE = min(available_size_x, available_size_y)
+    
+    # Limita o tamanho da célula entre mínimo e máximo
+    CELL_SIZE = max(min(CELL_SIZE, MAX_CELL_SIZE), MIN_CELL_SIZE)
+    
+    # Calcula os offsets para centralizar o tabuleiro
+    board_width = CELL_SIZE * GRID_SIZE
+    board_height = CELL_SIZE * GRID_SIZE
+    board_offset_x = (WIDTH - board_width) // 2
+    board_offset_y = ((HEIGHT - STATUS_BAR_HEIGHT) - board_height) // 2
+    
+    # Recalcula o tamanho da fonte baseado no tamanho da célula
+    FONT_SIZE = int(CELL_SIZE * 0.6)  # 60% do tamanho da célula
+    font = pygame.font.SysFont("Arial", FONT_SIZE)
+    small_font = pygame.font.SysFont("Arial", max(int(CELL_SIZE * 0.2), 12))
+    medium_font = pygame.font.SysFont("Arial", int(CELL_SIZE * 0.4))
+    large_font = pygame.font.SysFont("Arial", int(CELL_SIZE * 0.8))
+    
+    # Recalcula a posição dos botões - centralizados na barra de status
+    button_width = 140
+    button_height = 30
+    button_spacing = 20  # Espaço entre os botões
+    
+    # Botão de dicas (à direita)
+    HINT_BUTTON = pygame.Rect(
+        (WIDTH // 2) + button_spacing//2, 
+        HEIGHT - STATUS_BAR_HEIGHT + (STATUS_BAR_HEIGHT - button_height) // 2, 
+        button_width, 
+        button_height
+    )
+    
+    # Botão de dica única (à esquerda)
+    SOLVE_HINT_BUTTON = pygame.Rect(
+        (WIDTH // 2) - button_width - button_spacing//2, 
+        HEIGHT - STATUS_BAR_HEIGHT + (STATUS_BAR_HEIGHT - button_height) // 2, 
+        button_width, 
+        button_height
+    )
+
+    # Também recria as fontes com tamanhos proporcionais à tela para maior responsividade
+    title_font_size = int(min(WIDTH, HEIGHT) * 0.08)  # 8% da dimensão menor da tela
+    large_font = pygame.font.SysFont("Arial", title_font_size)
+    
+    medium_font_size = int(min(WIDTH, HEIGHT) * 0.045)  # 4.5% da dimensão menor da tela
+    medium_font = pygame.font.SysFont("Arial", medium_font_size)
+    
+# Chame update_dimensions imediatamente para calcular os valores iniciais
+update_dimensions(INITIAL_WIDTH, INITIAL_HEIGHT)
+
+def toggle_fullscreen():
+    """Alterna entre modo janela e tela cheia"""
+    global FULLSCREEN, screen, WIDTH, HEIGHT
+    
+    FULLSCREEN = not FULLSCREEN
+    
+    if FULLSCREEN:
+        # Guarda as dimensões atuais da janela antes de entrar em tela cheia
+        window_info = pygame.display.Info()
+        stored_width, stored_height = window_info.current_w, window_info.current_h
+        
+        # Muda para tela cheia
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        
+        # Atualiza dimensões para o tamanho da tela cheia
+        window_info = pygame.display.Info()
+        update_dimensions(window_info.current_w, window_info.current_h)
+    else:
+        # Volta para o modo janela
+        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 
 def draw_grid():
     # Desenha as linhas do grid
@@ -362,12 +466,16 @@ def draw_grid():
         line_width = 3 if i % 3 == 0 else 1
         
         # Linha horizontal
-        pygame.draw.line(screen, BLACK, (0, i * CELL_SIZE), 
-                         (WIDTH, i * CELL_SIZE), line_width)
+        pygame.draw.line(screen, BLACK, 
+                        (board_offset_x, board_offset_y + i * CELL_SIZE), 
+                        (board_offset_x + GRID_SIZE * CELL_SIZE, board_offset_y + i * CELL_SIZE), 
+                        line_width)
         
         # Linha vertical
-        pygame.draw.line(screen, BLACK, (i * CELL_SIZE, 0), 
-                         (i * CELL_SIZE, HEIGHT - 60), line_width)
+        pygame.draw.line(screen, BLACK, 
+                        (board_offset_x + i * CELL_SIZE, board_offset_y), 
+                        (board_offset_x + i * CELL_SIZE, board_offset_y + GRID_SIZE * CELL_SIZE), 
+                        line_width)
 
 def draw_numbers(sudoku):
     # Desenha os números no tabuleiro
@@ -376,6 +484,7 @@ def draw_numbers(sudoku):
             value = sudoku.board[row][col]
             note = sudoku.notes[row][col]
             highlight = (sudoku.highlight_number is not None and value == sudoku.highlight_number)
+            
             # Cor azul se for número destacado
             if value != 0:
                 if highlight:
@@ -383,10 +492,14 @@ def draw_numbers(sudoku):
                 else:
                     color = BLACK if sudoku.original_board[row][col] != 0 else (0, 100, 200)
                 num_surface = font.render(str(value), True, color)
-                x = col * CELL_SIZE + (CELL_SIZE - num_surface.get_width()) // 2
-                y = row * CELL_SIZE + (CELL_SIZE - num_surface.get_height()) // 2
+                x = board_offset_x + col * CELL_SIZE + (CELL_SIZE - num_surface.get_width()) // 2
+                y = board_offset_y + row * CELL_SIZE + (CELL_SIZE - num_surface.get_height()) // 2
                 screen.blit(num_surface, (x, y))
             elif note:
+                # Ajusta tamanho da fonte para anotações baseado no tamanho da célula
+                note_font_size = max(int(CELL_SIZE * 0.2), 10)  # 20% do tamanho da célula, mínimo 10px
+                note_font = pygame.font.SysFont("Arial", note_font_size)
+                
                 # Desenha as anotações pequenas
                 notes_text = ""
                 for n in range(1, 10):
@@ -394,13 +507,17 @@ def draw_numbers(sudoku):
                         notes_text += str(n)
                     else:
                         notes_text += " "
+                        
                 for idx, n in enumerate(notes_text):
                     if n != " ":
                         # Verifica se a anotação deve ser destacada
                         note_color = HIGHLIGHT_GRAY if sudoku.highlight_number is not None and int(n) == sudoku.highlight_number else GRAY
-                        note_surface = small_font.render(n, True, note_color)
-                        nx = col * CELL_SIZE + 5 + (idx % 3) * (CELL_SIZE // 3)
-                        ny = row * CELL_SIZE + 2 + (idx // 3) * (CELL_SIZE // 3)
+                        note_surface = note_font.render(n, True, note_color)
+                        
+                        # Posição exata dentro da célula para cada anotação
+                        cell_third = CELL_SIZE / 3
+                        nx = board_offset_x + col * CELL_SIZE + (idx % 3) * cell_third + (cell_third - note_surface.get_width()) / 2
+                        ny = board_offset_y + row * CELL_SIZE + (idx // 3) * cell_third + (cell_third - note_surface.get_height()) / 2
                         
                         # Opcional: desenha um fundo para destacar ainda mais as anotações
                         if sudoku.highlight_number is not None and int(n) == sudoku.highlight_number:
@@ -413,35 +530,61 @@ def draw_numbers(sudoku):
 def draw_selected_cell(pos, sudoku):
     # Destaca a célula selecionada
     if pos:
-        col, row = pos[0] // CELL_SIZE, pos[1] // CELL_SIZE
+        # Ajusta as coordenadas com base no offset do tabuleiro
+        adjusted_x = pos[0] - board_offset_x
+        adjusted_y = pos[1] - board_offset_y
         
-        # Verifica se a posição está dentro do tabuleiro
-        if 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
-            # Se a posição tem um número, destaca todos os números iguais
-            value = sudoku.board[row][col]
-            if value != 0 and AUTO_HIGHLIGHT:
-                sudoku.highlight_number = value
+        # Verifica se o clique foi dentro do tabuleiro
+        if 0 <= adjusted_x <= CELL_SIZE * GRID_SIZE and 0 <= adjusted_y <= CELL_SIZE * GRID_SIZE:
+            col = adjusted_x // CELL_SIZE
+            row = adjusted_y // CELL_SIZE
             
-            # Se a célula é editável, destaca com cor azul claro
-            if sudoku.original_board[row][col] == 0:
-                pygame.draw.rect(screen, LIGHT_BLUE, 
-                                (col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE), 4)
-                return (row, col)
-            # Se a célula não é editável (número fixo), destaca com uma cor diferente ou estilo pontilhado
-            else:
-                # Usar uma cor mais escura ou estilo diferente para células não editáveis
-                # Aqui usamos uma borda mais fina e cor cinza escuro
-                pygame.draw.rect(screen, DARK_GRAY, 
-                                (col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE), 2)
-                # Retorna None para células não editáveis pois não podemos modificá-las
-                return None
+            # Verifica se a posição está dentro do tabuleiro
+            if 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
+                # Se a posição tem um número, destaca todos os números iguais
+                value = sudoku.board[row][col]
+                if value != 0 and AUTO_HIGHLIGHT:
+                    sudoku.highlight_number = value
+                
+                # Se a célula é editável, destaca com cor azul claro
+                if sudoku.original_board[row][col] == 0:
+                    pygame.draw.rect(screen, LIGHT_BLUE, 
+                                    (board_offset_x + col * CELL_SIZE, board_offset_y + row * CELL_SIZE, 
+                                     CELL_SIZE, CELL_SIZE), 4)
+                    return (row, col)
+                # Se a célula não é editável (número fixo), destaca com uma cor diferente
+                else:
+                    pygame.draw.rect(screen, DARK_GRAY, 
+                                    (board_offset_x + col * CELL_SIZE, board_offset_y + row * CELL_SIZE, 
+                                     CELL_SIZE, CELL_SIZE), 2)
+                    return None
     return None
 
-def draw_status_bar(message, color=BLACK):
-    # Desenha a barra de status na parte inferior da tela
-    pygame.draw.rect(screen, GRAY, (0, HEIGHT - 60, WIDTH, 60))
-    status_text = small_font.render(message, True, color)
-    screen.blit(status_text, (10, HEIGHT - 40))
+def draw_status_bar(message, color=BLACK, hint_mode=False):
+    # Desenha a barra de status na parte inferior da tela com um fundo limpo
+    pygame.draw.rect(screen, GRAY, (0, HEIGHT - STATUS_BAR_HEIGHT, WIDTH, STATUS_BAR_HEIGHT))
+    
+    # Texto da mensagem principal (à esquerda)
+    if message:
+        # Limita o tamanho da mensagem para não sobrepor os botões
+        max_message_width = min(SOLVE_HINT_BUTTON.left - 20, WIDTH // 3)
+        
+        # Se a mensagem for muito longa, corta ou reduz o tamanho da fonte
+        status_text = small_font.render(message, True, color)
+        if status_text.get_width() > max_message_width:
+            # Tenta reduzir o tamanho da fonte
+            smaller_font = pygame.font.SysFont("Arial", small_font.get_height() - 2)
+            status_text = smaller_font.render(message, True, color)
+            
+            # Se ainda for muito grande, corta a mensagem
+            if status_text.get_width() > max_message_width:
+                # Encontra quantos caracteres cabem
+                char_width = status_text.get_width() / len(message)
+                chars_that_fit = int(max_message_width / char_width) - 3  # -3 para "..."
+                message = message[:chars_that_fit] + "..."
+                status_text = smaller_font.render(message, True, color)
+        
+        screen.blit(status_text, (10, HEIGHT - STATUS_BAR_HEIGHT + (STATUS_BAR_HEIGHT - status_text.get_height()) // 2))
     
     # Desenha o botão de dicas com texto apropriado
     button_color = LIGHT_BLUE if not HINTS_ENABLED else (150, 255, 150)  # Verde claro se ativado
@@ -449,56 +592,112 @@ def draw_status_bar(message, color=BLACK):
     pygame.draw.rect(screen, BLACK, HINT_BUTTON, 2)
     
     hint_text = small_font.render("Dicas " + ("ON" if HINTS_ENABLED else "OFF"), True, BLACK)
-    screen.blit(hint_text, (WIDTH // 2 - hint_text.get_width() // 2, HEIGHT - 45 + (30 - hint_text.get_height()) // 2))
+    screen.blit(hint_text, (HINT_BUTTON.centerx - hint_text.get_width() // 2, 
+                           HINT_BUTTON.centery - hint_text.get_height() // 2))
     
-    # Desenha o botão de dica única
-    pygame.draw.rect(screen, (255, 220, 100), SOLVE_HINT_BUTTON)  # Amarelo claro para o botão
+    # Desenha o botão de dica única (com texto alterado se estiver no modo de dica)
+    hint_button_color = (255, 180, 100) if hint_mode else (255, 220, 100)  # Laranja mais forte no modo de dica
+    pygame.draw.rect(screen, hint_button_color, SOLVE_HINT_BUTTON)
     pygame.draw.rect(screen, BLACK, SOLVE_HINT_BUTTON, 2)
     
-    solve_text = small_font.render("Pedir Dica", True, BLACK)
-    screen.blit(solve_text, (SOLVE_HINT_BUTTON.x + (SOLVE_HINT_BUTTON.width - solve_text.get_width()) // 2, 
-                            SOLVE_HINT_BUTTON.y + (SOLVE_HINT_BUTTON.height - solve_text.get_height()) // 2))
-
-def draw_lives(sudoku):
-    # Desenha os corações representando as vidas
-    for i in range(3):
-        if i < sudoku.lives:
-            screen.blit(heart_img, (WIDTH - 100 + i * 35, HEIGHT - 45))
-        else:
-            # Coração vazio (contorno)
-            pygame.draw.polygon(screen, RED, 
-                [(WIDTH - 100 + i * 35 + 15, HEIGHT - 45 + 5),
-                 (WIDTH - 100 + i * 35 + 25, HEIGHT - 45 + 15),
-                 (WIDTH - 100 + i * 35 + 15, HEIGHT - 45 + 25),
-                 (WIDTH - 100 + i * 35 + 5, HEIGHT - 45 + 15)], 1)
+    solve_text = small_font.render("Clique em uma célula" if hint_mode else "Pedir Dica", True, BLACK)
+    screen.blit(solve_text, (SOLVE_HINT_BUTTON.centerx - solve_text.get_width() // 2, 
+                            SOLVE_HINT_BUTTON.centery - solve_text.get_height() // 2))
+    
+    # Removido o texto "F11: Tela Cheia" da interface
 
 def draw_menu():
-    # Desenha a tela de menu
+    """
+    Desenha a tela de menu completamente responsiva e centralizada
+    independentemente do tamanho da janela
+    """
     screen.fill(WHITE)
     
-    # Título
-    title = large_font.render("SUDOKU", True, BLACK)
-    screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
+    # Recalcula as fontes para o menu específicamente, garantindo melhor responsividade
+    title_font_size = int(min(WIDTH, HEIGHT) * 0.08)
+    title_font = pygame.font.SysFont("Arial", title_font_size)
     
-    # Opções de dificuldade
+    instruction_font_size = int(min(WIDTH, HEIGHT) * 0.045)
+    instruction_font = pygame.font.SysFont("Arial", instruction_font_size)
+    
+    button_font_size = int(min(WIDTH, HEIGHT) * 0.04)
+    button_font = pygame.font.SysFont("Arial", button_font_size)
+    
+    # Calcula as dimensões dos elementos
+    button_width = min(WIDTH * 0.6, 400)  # Limitado para não ficar muito largo
+    button_height = min(HEIGHT * 0.08, 60)  # Limitado para não ficar muito alto
+    
+    # Espaçamento vertical entre os elementos
+    vertical_spacing = HEIGHT * 0.05
+    
+    # Calcula proporcionalmente o espaçamento entre botões
+    button_spacing = min(HEIGHT * 0.03, 30)
+    
+    # Título centralizado
+    title = title_font.render("SUDOKU", True, BLACK)
+    
+    # Instruções centralizadas
+    instructions = instruction_font.render("Selecione a dificuldade", True, DARK_GRAY)
+    
+    # Calcula a altura total do conteúdo
+    total_content_height = (title.get_height() + instructions.get_height() + 
+                           (3 * button_height) + (2 * button_spacing) + (2 * vertical_spacing))
+    
+    # Posição inicial Y para centralizar todo o conteúdo verticalmente
+    start_y = (HEIGHT - total_content_height) / 2
+    
+    # Renderiza o título
+    title_y = start_y
+    screen.blit(title, (WIDTH // 2 - title.get_width() // 2, title_y))
+    
+    # Renderiza as instruções
+    instructions_y = title_y + title.get_height() + vertical_spacing
+    screen.blit(instructions, (WIDTH // 2 - instructions.get_width() // 2, instructions_y))
+    
+    # Inicializa o ponto de partida dos botões
+    button_start_y = instructions_y + instructions.get_height() + vertical_spacing
+    
+    # Prepara as opções de dificuldade
     difficulties = ['easy', 'medium', 'hard']
     difficulty_texts = ['Fácil', 'Médio', 'Difícil']
+    button_rects = []
     
+    # Desenha cada botão centralizado
     for i, (diff, text) in enumerate(zip(difficulties, difficulty_texts)):
-        y_pos = 250 + i * 80
+        # Posição Y com espaçamento adequado
+        y_pos = button_start_y + i * (button_height + button_spacing)
         
-        # Cria um retângulo para o botão
-        button_rect = pygame.Rect(WIDTH // 2 - 100, y_pos, 200, 50)
+        # Cria um retângulo para o botão centralizado na tela
+        button_rect = pygame.Rect(WIDTH // 2 - button_width // 2, y_pos, button_width, button_height)
+        button_rects.append(button_rect)
+        
+        # Desenha o botão
         pygame.draw.rect(screen, LIGHT_BLUE, button_rect)
         pygame.draw.rect(screen, BLACK, button_rect, 2)
         
-        # Texto do botão
-        diff_text = medium_font.render(text, True, BLACK)
-        screen.blit(diff_text, (WIDTH // 2 - diff_text.get_width() // 2, y_pos + 15))
-        
-    # Instruções
-    instructions = small_font.render("Selecione a dificuldade", True, DARK_GRAY)
-    screen.blit(instructions, (WIDTH // 2 - instructions.get_width() // 2, 200))
+        # Texto do botão centralizado
+        diff_text = button_font.render(text, True, BLACK)
+        screen.blit(diff_text, (button_rect.centerx - diff_text.get_width() // 2, 
+                               button_rect.centery - diff_text.get_height() // 2))
+    
+    # Retorna uma lista com os botões e suas dificuldades
+    return [(diff, rect) for diff, rect in zip(difficulties, button_rects)]
+
+def draw_lives(sudoku):
+    # Desenha os corações representando as vidas (no canto superior direito)
+    heart_x_start = WIDTH - 130  # Corrigido: Afastado mais à direita para evitar sobreposição
+    heart_y = HEIGHT - STATUS_BAR_HEIGHT + (STATUS_BAR_HEIGHT - heart_img.get_height()) // 2
+    
+    for i in range(3):
+        if i < sudoku.lives:
+            screen.blit(heart_img, (heart_x_start + i * 35, heart_y))
+        else:
+            # Coração vazio (contorno)
+            pygame.draw.polygon(screen, RED, 
+                [(heart_x_start + i * 35 + 15, heart_y + 5),
+                 (heart_x_start + i * 35 + 25, heart_y + 15),
+                 (heart_x_start + i * 35 + 15, heart_y + 25),
+                 (heart_x_start + i * 35 + 5, heart_y + 15)], 1)
 
 def draw_game_over(sudoku):
     # Desenha uma camada semitransparente sobre o jogo
@@ -506,71 +705,97 @@ def draw_game_over(sudoku):
     overlay.fill((0, 0, 0, 180))
     screen.blit(overlay, (0, 0))
     
-    # Mensagem de game over
+    # Mensagem de game over centralizada vertical e horizontalmente
     game_over_text = large_font.render("GAME OVER", True, RED)
-    screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, 80))
+    game_over_y = HEIGHT * 0.15  # Posição baseada em porcentagem da altura
+    screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, game_over_y))
     
     # Instruções
     press_any_key = small_font.render("Pressione qualquer tecla para voltar ao menu", True, WHITE)
-    screen.blit(press_any_key, (WIDTH // 2 - press_any_key.get_width() // 2, 130))
+    screen.blit(press_any_key, (WIDTH // 2 - press_any_key.get_width() // 2, game_over_y + 50))
     
     # Mostra a solução correta
     solution_text = medium_font.render("Solução:", True, WHITE)
-    screen.blit(solution_text, (WIDTH // 2 - solution_text.get_width() // 2, 170))
+    solution_y = game_over_y + 100
+    screen.blit(solution_text, (WIDTH // 2 - solution_text.get_width() // 2, solution_y))
     
-    # Desenha o tabuleiro resolvido em tamanho reduzido para caber na tela
-    cell_size_small = CELL_SIZE * 0.5  # Reduzido para 50% do tamanho original
+    # Calcula o tamanho apropriado para o tabuleiro de solução
+    available_height = HEIGHT - solution_y - 50
+    solution_cell_size = min(available_height / 9, WIDTH / 12)  # Garante que caiba na tela
+    
+    # Desenha o tabuleiro resolvido em tamanho apropriado
+    solution_grid_size = solution_cell_size * 9
+    solution_x = WIDTH // 2 - solution_grid_size // 2
+    solution_y += 30  # Espaço abaixo do texto "Solução:"
+    
     for i in range(9):
         for j in range(9):
             value = sudoku.solution[i][j]
-            # Calcula posição para tabuleiro centralizado e menor
-            x = WIDTH // 2 - (cell_size_small * 9) // 2 + j * cell_size_small
-            y = 200 + i * cell_size_small
+            # Calcula posição para tabuleiro centralizado
+            x = solution_x + j * solution_cell_size
+            y = solution_y + i * solution_cell_size
             
-            # Desenha o número em fonte menor
-            mini_font = pygame.font.SysFont("Arial", 12)
+            # Fundo da célula para melhorar visibilidade
+            pygame.draw.rect(screen, (50, 50, 50), 
+                            (x, y, solution_cell_size, solution_cell_size))
+            
+            # Desenha o número em fonte apropriada
+            font_size = int(solution_cell_size * 0.6)
+            mini_font = pygame.font.SysFont("Arial", font_size)
             num_surface = mini_font.render(str(value), True, WHITE)
-            screen.blit(num_surface, (x + (cell_size_small - num_surface.get_width()) // 2, 
-                                     y + (cell_size_small - num_surface.get_height()) // 2))
+            screen.blit(num_surface, (x + (solution_cell_size - num_surface.get_width()) // 2, 
+                                     y + (solution_cell_size - num_surface.get_height()) // 2))
             
     # Desenha as linhas da grade
     for i in range(10):
         line_width = 2 if i % 3 == 0 else 1
-        x = WIDTH // 2 - (cell_size_small * 9) // 2 + i * cell_size_small
-        y = 200
-        pygame.draw.line(screen, WHITE, (x, y), (x, y + cell_size_small * 9), line_width)
-        pygame.draw.line(screen, WHITE, (WIDTH // 2 - (cell_size_small * 9) // 2, y + i * cell_size_small),
-                         (WIDTH // 2 + (cell_size_small * 9) // 2, y + i * cell_size_small), line_width)
+        pygame.draw.line(screen, WHITE, 
+                        (solution_x + i * solution_cell_size, solution_y), 
+                        (solution_x + i * solution_cell_size, solution_y + 9 * solution_cell_size), line_width)
+        pygame.draw.line(screen, WHITE, 
+                        (solution_x, solution_y + i * solution_cell_size), 
+                        (solution_x + 9 * solution_cell_size, solution_y + i * solution_cell_size), line_width)
 
-def draw_victory_screen(sudoku, time_taken=None):
-    """Desenha a tela de vitória quando o jogador completa o sudoku"""
-    # Desenha uma camada semitransparente sobre o jogo (verde para vitória)
+def draw_victory_screen(sudoku):
+    """Desenha a tela de vitória quando o jogador completa o sudoku corretamente"""
+    # Desenha uma camada semitransparente verde sobre o jogo
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 100, 0, 180))  # Verde escuro semitransparente
     screen.blit(overlay, (0, 0))
     
+    # Calcula proporções e espaçamentos responsivos
+    top_margin = HEIGHT * 0.12
+    content_spacing = HEIGHT * 0.07
+    
     # Mensagem de vitória
     victory_text = large_font.render("VITÓRIA!", True, GREEN)
-    screen.blit(victory_text, (WIDTH // 2 - victory_text.get_width() // 2, 100))
+    victory_y = top_margin
+    screen.blit(victory_text, (WIDTH // 2 - victory_text.get_width() // 2, victory_y))
     
     # Mensagem de parabéns
     congrats_text = medium_font.render("Parabéns! Você completou o Sudoku!", True, WHITE)
-    screen.blit(congrats_text, (WIDTH // 2 - congrats_text.get_width() // 2, 180))
+    congrats_y = victory_y + victory_text.get_height() + content_spacing
+    screen.blit(congrats_text, (WIDTH // 2 - congrats_text.get_width() // 2, congrats_y))
     
     # Mostrar dificuldade
     difficulty_map = {'easy': 'Fácil', 'medium': 'Médio', 'hard': 'Difícil'}
     diff_text = medium_font.render(f"Dificuldade: {difficulty_map[sudoku.difficulty]}", True, WHITE)
-    screen.blit(diff_text, (WIDTH // 2 - diff_text.get_width() // 2, 240))
+    diff_y = congrats_y + congrats_text.get_height() + content_spacing * 0.7
+    screen.blit(diff_text, (WIDTH // 2 - diff_text.get_width() // 2, diff_y))
     
     # Instruções
     press_any_key = small_font.render("Pressione qualquer tecla para continuar", True, WHITE)
-    screen.blit(press_any_key, (WIDTH // 2 - press_any_key.get_width() // 2, 320))
+    key_y = diff_y + diff_text.get_height() + content_spacing * 1.5
+    screen.blit(press_any_key, (WIDTH // 2 - press_any_key.get_width() // 2, key_y))
     
-    # Desenha estrelas decorativas
-    for i in range(5):
-        angle = i * (360 / 5)
-        x = WIDTH // 2 + 150 * math.cos(math.radians(angle))
-        y = HEIGHT // 2 + 150 * math.sin(math.radians(angle))
+    # Desenha estrelas decorativas em torno da mensagem
+    star_radius = min(WIDTH, HEIGHT) * 0.25  # Raio do círculo onde as estrelas serão colocadas
+    num_stars = 5
+    
+    for i in range(num_stars):
+        angle = i * (360 / num_stars)
+        x = WIDTH // 2 + star_radius * math.cos(math.radians(angle))
+        y = HEIGHT // 2 + star_radius * math.sin(math.radians(angle))
         draw_star(x, y, 20, 10, 5, (255, 255, 0))  # Estrela amarela
 
 def draw_star(x, y, outer_radius, inner_radius, points, color):
@@ -591,26 +816,35 @@ def main():
     running = True
     selected_pos = None
     message = ""
+    hint_mode = False  # Controla se estamos no modo de seleção de dica
     
     # Loop principal do jogo
     while running:
         if game_state == MENU:
-            draw_menu()
+            # Armazena os botões retornados para detecção de clique
+            difficulty_buttons = draw_menu()
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.VIDEORESIZE:
+                    # Importante: atualiza as dimensões também no menu quando a janela é redimensionada
+                    if not FULLSCREEN:
+                        update_dimensions(event.w, event.h)
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = pygame.mouse.get_pos()
                     # Verifica se clicou em um dos botões de dificuldade
-                    for i, diff in enumerate(['easy', 'medium', 'hard']):
-                        button_rect = pygame.Rect(WIDTH // 2 - 100, 250 + i * 80, 200, 50)
+                    for diff, button_rect in difficulty_buttons:
                         if button_rect.collidepoint(mouse_pos):
                             sudoku = Sudoku(difficulty=diff)
                             game_state = PLAYING
                             message = "Você tem 3 vidas! Cuidado com os erros!"
                             selected_pos = None
-        
+                elif event.type == pygame.KEYDOWN:
+                    # F11 para tela cheia (mantém a funcionalidade, só remove o texto)
+                    if event.key == pygame.K_F11:
+                        toggle_fullscreen()
+    
         elif game_state == PLAYING:
             screen.fill(WHITE)
             draw_grid()
@@ -622,12 +856,26 @@ def main():
             else:
                 selected_cell = None
                 
-            draw_status_bar(message)
+            draw_status_bar(message, BLACK, hint_mode)
             draw_lives(sudoku)
+            
+            # Verificação automática após cada alteração do tabuleiro
+            # Se o tabuleiro estiver completo, avança para tela de vitória
+            if all(all(cell != 0 for cell in row) for row in sudoku.board) and sudoku.is_complete():
+                game_state = VICTORY
+                message = "Parabéns! Você completou o Sudoku corretamente!"
+                pygame.time.delay(500)  # Pequeno atraso para perceber que finalizou
+                continue
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                
+                # Evento de redimensionamento da janela
+                elif event.type == pygame.VIDEORESIZE:
+                    if not FULLSCREEN:  # Ignora eventos de redimensionamento em tela cheia
+                        update_dimensions(event.w, event.h)
+                
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         mouse_pos = pygame.mouse.get_pos()
@@ -637,44 +885,78 @@ def main():
                             message = f"Dicas {'ativadas' if HINTS_ENABLED else 'desativadas'}!"
                         # Verifica se clicou no botão de dica única
                         elif SOLVE_HINT_BUTTON.collidepoint(mouse_pos):
-                            hint_result = sudoku.get_hint()
-                            if hint_result:
-                                row, col, value = hint_result
-                                message = f"Dica: {value} na posição ({row+1},{col+1})"
-                                # Destaca a posição da dica
-                                selected_pos = (col * CELL_SIZE + CELL_SIZE // 2, row * CELL_SIZE + CELL_SIZE // 2)
-                            else:
-                                message = "Não há células vazias para receber dicas!"
+                            if not hint_mode:  # Se não está no modo dica, ativa
+                                hint_mode = True
+                                message = "Selecione uma célula vazia para receber a dica"
+                            else:  # Se já está no modo dica, cancela
+                                hint_mode = False
+                                message = "Modo de dica cancelado"
                         # Verifica se clicou no tabuleiro
-                        elif mouse_pos[1] < HEIGHT - 60:
-                            selected_pos = mouse_pos
-                            col, row = mouse_pos[0] // CELL_SIZE, mouse_pos[1] // CELL_SIZE
-                            if 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
-                                value = sudoku.board[row][col]
-                                if value != 0:
-                                    # Ao clicar, alterna entre destacar ou não
-                                    if sudoku.highlight_number == value:
-                                        sudoku.highlight_number = None
+                        elif mouse_pos[1] < HEIGHT - STATUS_BAR_HEIGHT:
+                            # Ajusta as coordenadas com base no offset do tabuleiro
+                            adjusted_x = mouse_pos[0] - board_offset_x
+                            adjusted_y = mouse_pos[1] - board_offset_y
+                            
+                            # Verifica se o clique foi dentro do tabuleiro
+                            if (0 <= adjusted_x <= CELL_SIZE * GRID_SIZE and 
+                                0 <= adjusted_y <= CELL_SIZE * GRID_SIZE):
+                                selected_pos = mouse_pos
+                                col = adjusted_x // CELL_SIZE
+                                row = adjusted_y // CELL_SIZE
+                                
+                                # Se estamos no modo dica e clicou em uma célula válida
+                                if hint_mode and 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
+                                    # Verifica se a célula está vazia e pode receber dica
+                                    if sudoku.board[row][col] == 0:
+                                        hint_result = sudoku.get_hint(row, col)
+                                        if hint_result:
+                                            r, c, value = hint_result
+                                            message = f"Dica: {value} na posição ({r+1},{c+1})"
+                                        else:
+                                            message = "Não foi possível fornecer dica para esta célula"
                                     else:
-                                        sudoku.highlight_number = value
-                                else:
-                                    sudoku.highlight_number = None
-                            message = "Digite um número (1-9) para preencher. Shift+1..9 para anotar."
+                                        message = "Selecione uma célula vazia para receber a dica"
+                                # Comportamento normal quando não está no modo dica
+                                elif not hint_mode and 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
+                                    value = sudoku.board[row][col]
+                                    if value != 0:
+                                        # Ao clicar, alterna entre destacar ou não
+                                        if sudoku.highlight_number == value:
+                                            sudoku.highlight_number = None
+                                        else:
+                                            sudoku.highlight_number = value
+                                    else:
+                                        sudoku.highlight_number = None
+                                
+                                    if not hint_mode:
+                                        message = "Digite um número (1-9) para preencher. Shift+1..9 para anotar."
                 # Adiciona tratamento para movimento do mouse
                 elif event.type == pygame.MOUSEMOTION:
                     # Se o mouse sai do tabuleiro, cancela o highlight automático
-                    if event.pos[1] >= HEIGHT - 60:
+                    if event.pos[1] >= HEIGHT - STATUS_BAR_HEIGHT:
                         if sudoku.highlight_number is not None and AUTO_HIGHLIGHT:
                             sudoku.highlight_number = None
                 elif event.type == pygame.KEYDOWN:
+                    # Tecla F11 para alternar tela cheia
+                    if event.key == pygame.K_F11:
+                        toggle_fullscreen()
+                        
+                    # Tecla ESC para sair da tela cheia, se estiver nela
+                    elif event.key == pygame.K_ESCAPE and FULLSCREEN:
+                        toggle_fullscreen()
+                        continue  # Não processa ESC como "voltar ao menu" se estiver em tela cheia
+                    
                     # Navegação com setas
                     if event.key in ARROW_KEYS:
                         if selected_pos is None:
                             # Se nenhuma célula estiver selecionada, começa na primeira célula
-                            selected_pos = (CELL_SIZE // 2, CELL_SIZE // 2)
+                            selected_pos = (board_offset_x + CELL_SIZE // 2, board_offset_y + CELL_SIZE // 2)
                         else:
                             # Calcula a célula atual
-                            col, row = selected_pos[0] // CELL_SIZE, selected_pos[1] // CELL_SIZE
+                            adjusted_x = selected_pos[0] - board_offset_x
+                            adjusted_y = selected_pos[1] - board_offset_y
+                            col = adjusted_x // CELL_SIZE 
+                            row = adjusted_y // CELL_SIZE
                             
                             # Move para a próxima célula na direção indicada
                             drow, dcol = ARROW_KEYS[event.key]
@@ -682,9 +964,8 @@ def main():
                             new_col = max(0, min(GRID_SIZE - 1, col + dcol))
                             
                             # Atualiza a posição selecionada
-                            selected_pos = (new_col * CELL_SIZE + CELL_SIZE // 2, 
-                                           new_row * CELL_SIZE + CELL_SIZE // 2)
-                            
+                            selected_pos = (board_offset_x + new_col * CELL_SIZE + CELL_SIZE // 2, 
+                                          board_offset_y + new_row * CELL_SIZE + CELL_SIZE // 2)
 
                             message = f"Célula selecionada: ({new_row+1}, {new_col+1})"
                     
@@ -714,39 +995,41 @@ def main():
                                 continue
                         
                         # Anotação: Shift+número (incluindo teclado numérico)
-                        if event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0 and is_shift_pressed and not is_ctrl_pressed:
+                        # Verificação melhorada para reconhecer corretamente Shift+teclado numérico
+                        if event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0:
                             num = NUMERIC_KEYS[event.key]
-                            if sudoku.original_board[row][col] == 0 and sudoku.board[row][col] == 0:
-                                # Salva o estado antes de modificar
+                            
+                            # Modo de anotação (Shift pressionado)
+                            if is_shift_pressed:
+                                if sudoku.original_board[row][col] == 0 and sudoku.board[row][col] == 0:
+                                    # Salva o estado antes de modificar
+                                    sudoku.save_state()
+                                    
+                                    if num in sudoku.notes[row][col]:
+                                        sudoku.notes[row][col].remove(num)
+                                    else:
+                                        sudoku.notes[row][col].add(num)
+                                    message = f"Anotação {num} {'removida' if num not in sudoku.notes[row][col] else 'adicionada'}."
+                            # Modo de inserção normal (sem Shift)
+                            else:
+                                # Salva o estado antes de tentar inserir um número
                                 sudoku.save_state()
                                 
-
-                                if num in sudoku.notes[row][col]:
-                                    sudoku.notes[row][col].remove(num)
-                                else:
-                                    sudoku.notes[row][col].add(num)
-                                message = f"Anotação {num} {'removida' if num not in sudoku.notes[row][col] else 'adicionada'}."
-                        # Preenchimento normal (incluindo teclado numérico)
-                        elif event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0:
-                            # Salva o estado antes de tentar inserir um número
-                            sudoku.save_state()
-                            
-                            num = NUMERIC_KEYS[event.key]
-                            if sudoku.original_board[row][col] == 0:
-                                correct_num = sudoku.solution[row][col]
-                                
-                                if num == correct_num:  # Resposta correta
-                                    sudoku.board[row][col] = num
-                                    sudoku.notes[row][col].clear()
-                                    # Atualiza as dicas automaticamente quando inserimos um número correto
-                                    sudoku.update_if_hints_enabled()
-                                    message = f"Número {num} inserido corretamente!"
-                                else:  # Resposta errada
-                                    if sudoku.lose_life():  # Perde uma vida
-                                        message = "Você perdeu todas as vidas!"
-                                        game_state = GAME_OVER
-                                    else:
-                                        message = f"Número errado! Você perdeu uma vida! ({sudoku.lives} restantes)"
+                                if sudoku.original_board[row][col] == 0:
+                                    correct_num = sudoku.solution[row][col]
+                                    
+                                    if num == correct_num:  # Resposta correta
+                                        sudoku.board[row][col] = num
+                                        sudoku.notes[row][col].clear()
+                                        # Atualiza as dicas automaticamente quando inserimos um número correto
+                                        sudoku.update_if_hints_enabled()
+                                        message = f"Número {num} inserido corretamente!"
+                                    else:  # Resposta errada
+                                        if sudoku.lose_life():  # Perde uma vida
+                                            message = "Você perdeu todas as vidas!"
+                                            game_state = GAME_OVER
+                                        else:
+                                            message = f"Número errado! Você perdeu uma vida! ({sudoku.lives} restantes)"
                         elif event.key in (pygame.K_DELETE, pygame.K_BACKSPACE):
                             if sudoku.original_board[row][col] == 0:
                                 # Salva o estado antes de apagar
