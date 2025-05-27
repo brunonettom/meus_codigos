@@ -30,6 +30,14 @@ small_font = pygame.font.SysFont("Arial", 20)
 medium_font = pygame.font.SysFont("Arial", 28)
 large_font = pygame.font.SysFont("Arial", 42)
 
+# Mapeamento de teclas numéricas para valores
+NUMERIC_KEYS = {
+    pygame.K_0: 0, pygame.K_1: 1, pygame.K_2: 2, pygame.K_3: 3, pygame.K_4: 4,
+    pygame.K_5: 5, pygame.K_6: 6, pygame.K_7: 7, pygame.K_8: 8, pygame.K_9: 9,
+    pygame.K_KP0: 0, pygame.K_KP1: 1, pygame.K_KP2: 2, pygame.K_KP3: 3, pygame.K_KP4: 4,
+    pygame.K_KP5: 5, pygame.K_KP6: 6, pygame.K_KP7: 7, pygame.K_KP8: 8, pygame.K_KP9: 9
+}
+
 # Imagem de coração (vida)
 heart_img = pygame.Surface((30, 30), pygame.SRCALPHA)
 pygame.draw.polygon(heart_img, RED, [(15, 5), (25, 15), (15, 25), (5, 15)])
@@ -370,18 +378,18 @@ def main():
                 elif event.type == pygame.KEYDOWN:
                     if selected_cell:
                         row, col = selected_cell
-                        # Anotação: Shift+1..9
-                        if pygame.K_1 <= event.key <= pygame.K_9 and (pygame.key.get_mods() & pygame.KMOD_SHIFT):
-                            num = event.key - pygame.K_0
+                        # Anotação: Shift+número (incluindo teclado numérico)
+                        if event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0 and (pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                            num = NUMERIC_KEYS[event.key]
                             if sudoku.original_board[row][col] == 0 and sudoku.board[row][col] == 0:
                                 if num in sudoku.notes[row][col]:
                                     sudoku.notes[row][col].remove(num)
                                 else:
                                     sudoku.notes[row][col].add(num)
                                 message = f"Anotação {num} {'removida' if num not in sudoku.notes[row][col] else 'adicionada'}."
-                        # Preenchimento normal
-                        elif pygame.K_1 <= event.key <= pygame.K_9:
-                            num = event.key - pygame.K_0
+                        # Preenchimento normal (incluindo teclado numérico)
+                        elif event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0:
+                            num = NUMERIC_KEYS[event.key]
                             if sudoku.original_board[row][col] == 0:
                                 correct_num = sudoku.solution[row][col]
                                 
