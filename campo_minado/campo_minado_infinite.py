@@ -2359,4 +2359,4 @@ if __name__ == "__main__":
         show_tip_of_the_day()
     
     # Start the game
-    main()
+    main() 
