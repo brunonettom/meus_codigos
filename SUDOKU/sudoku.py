@@ -2,6 +2,7 @@ import pygame
 import random
 import time
 import math  # Novo import para funções matemáticas
+import os  # Adicionar import para manipulação de arquivos
 
 # Inicializando o pygame
 pygame.init()
@@ -81,9 +82,17 @@ VICTORY = 3  # Novo estado para tela de vitória
 HINT_MODE = 4  # Novo estado para modo de seleção de dica
 FULLSCREEN = False  # Estado para controlar tela cheia
 
-# Imagem de coração (vida)
-heart_img = pygame.Surface((30, 30), pygame.SRCALPHA)
-pygame.draw.polygon(heart_img, RED, [(15, 5), (25, 15), (15, 25), (5, 15)])
+# Carrega a imagem de coração para vidas
+try:
+    coracao_img_path = os.path.join("SUDOKU", "img", "coracao.png")
+    heart_img = pygame.image.load(coracao_img_path)
+    # Redimensiona a imagem para um tamanho adequado
+    heart_img = pygame.transform.scale(heart_img, (30, 30))
+except pygame.error:
+    # Se não conseguir carregar a imagem, cria uma superfície com um coração desenhado como fallback
+    print("Aviso: Não foi possível carregar a imagem coracao.png. Usando fallback.")
+    heart_img = pygame.Surface((30, 30), pygame.SRCALPHA)
+    pygame.draw.polygon(heart_img, RED, [(15, 5), (25, 15), (15, 25), (5, 15)])
 
 class Sudoku:
     def __init__(self, difficulty='medium'):
@@ -404,7 +413,8 @@ def update_dimensions(new_width, new_height):
     # Recalcula o tamanho da fonte baseado no tamanho da célula
     FONT_SIZE = int(CELL_SIZE * 0.6)  # 60% do tamanho da célula
     font = pygame.font.SysFont("Arial", FONT_SIZE)
-    small_font = pygame.font.SysFont("Arial", max(int(CELL_SIZE * 0.2), 12))
+    # Aumentado o tamanho da small_font para melhor visibilidade
+    small_font = pygame.font.SysFont("Arial", max(int(CELL_SIZE * 0.3), 14))  # Mínimo agora é 14px
     medium_font = pygame.font.SysFont("Arial", int(CELL_SIZE * 0.4))
     large_font = pygame.font.SysFont("Arial", int(CELL_SIZE * 0.8))
     
@@ -497,7 +507,8 @@ def draw_numbers(sudoku):
                 screen.blit(num_surface, (x, y))
             elif note:
                 # Ajusta tamanho da fonte para anotações baseado no tamanho da célula
-                note_font_size = max(int(CELL_SIZE * 0.2), 10)  # 20% do tamanho da célula, mínimo 10px
+                # Aumentado o tamanho das anotações para 30% do tamanho da célula (antes era 20%)
+                note_font_size = max(int(CELL_SIZE * 0.3), 12)  # 30% do tamanho da célula, mínimo 12px
                 note_font = pygame.font.SysFont("Arial", note_font_size)
                 
                 # Desenha as anotações pequenas
@@ -514,15 +525,19 @@ def draw_numbers(sudoku):
                         note_color = HIGHLIGHT_GRAY if sudoku.highlight_number is not None and int(n) == sudoku.highlight_number else GRAY
                         note_surface = note_font.render(n, True, note_color)
                         
-                        # Posição exata dentro da célula para cada anotação
+                        # Ajusta o posicionamento para acomodar o tamanho maior das anotações
+                        # e garantir que elas fiquem bem distribuídas na célula
                         cell_third = CELL_SIZE / 3
+                        
+                        # Centraliza melhor cada anotação dentro de seu espaço na célula
                         nx = board_offset_x + col * CELL_SIZE + (idx % 3) * cell_third + (cell_third - note_surface.get_width()) / 2
                         ny = board_offset_y + row * CELL_SIZE + (idx // 3) * cell_third + (cell_third - note_surface.get_height()) / 2
                         
                         # Opcional: desenha um fundo para destacar ainda mais as anotações
                         if sudoku.highlight_number is not None and int(n) == sudoku.highlight_number:
+                            # Aumenta um pouco mais o retângulo de destaque para as anotações maiores
                             note_rect = note_surface.get_rect(topleft=(nx, ny))
-                            note_rect.inflate_ip(2, 2)  # Aumenta ligeiramente o tamanho do retângulo
+                            note_rect.inflate_ip(4, 4)  # Aumenta ainda mais o tamanho do retângulo
                             pygame.draw.rect(screen, (230, 230, 255), note_rect)  # Fundo claro para destacar
                             
                         screen.blit(note_surface, (nx, ny))
@@ -564,27 +579,8 @@ def draw_status_bar(message, color=BLACK, hint_mode=False):
     # Desenha a barra de status na parte inferior da tela com um fundo limpo
     pygame.draw.rect(screen, GRAY, (0, HEIGHT - STATUS_BAR_HEIGHT, WIDTH, STATUS_BAR_HEIGHT))
     
-    # Texto da mensagem principal (à esquerda)
-    if message:
-        # Limita o tamanho da mensagem para não sobrepor os botões
-        max_message_width = min(SOLVE_HINT_BUTTON.left - 20, WIDTH // 3)
-        
-        # Se a mensagem for muito longa, corta ou reduz o tamanho da fonte
-        status_text = small_font.render(message, True, color)
-        if status_text.get_width() > max_message_width:
-            # Tenta reduzir o tamanho da fonte
-            smaller_font = pygame.font.SysFont("Arial", small_font.get_height() - 2)
-            status_text = smaller_font.render(message, True, color)
-            
-            # Se ainda for muito grande, corta a mensagem
-            if status_text.get_width() > max_message_width:
-                # Encontra quantos caracteres cabem
-                char_width = status_text.get_width() / len(message)
-                chars_that_fit = int(max_message_width / char_width) - 3  # -3 para "..."
-                message = message[:chars_that_fit] + "..."
-                status_text = smaller_font.render(message, True, color)
-        
-        screen.blit(status_text, (10, HEIGHT - STATUS_BAR_HEIGHT + (STATUS_BAR_HEIGHT - status_text.get_height()) // 2))
+    # Removido o texto de mensagem do canto inferior esquerdo
+    # Agora só exibe mensagem se for realmente importante
     
     # Desenha o botão de dicas com texto apropriado
     button_color = LIGHT_BLUE if not HINTS_ENABLED else (150, 255, 150)  # Verde claro se ativado
@@ -603,8 +599,6 @@ def draw_status_bar(message, color=BLACK, hint_mode=False):
     solve_text = small_font.render("Clique em uma célula" if hint_mode else "Pedir Dica", True, BLACK)
     screen.blit(solve_text, (SOLVE_HINT_BUTTON.centerx - solve_text.get_width() // 2, 
                             SOLVE_HINT_BUTTON.centery - solve_text.get_height() // 2))
-    
-    # Removido o texto "F11: Tela Cheia" da interface
 
 def draw_menu():
     """
@@ -685,19 +679,27 @@ def draw_menu():
 
 def draw_lives(sudoku):
     # Desenha os corações representando as vidas (no canto superior direito)
-    heart_x_start = WIDTH - 130  # Corrigido: Afastado mais à direita para evitar sobreposição
+    # Aumentado o deslocamento para direita para evitar sobreposição com botões
+    heart_x_start = WIDTH - 110  # Movido ainda mais para a direita
     heart_y = HEIGHT - STATUS_BAR_HEIGHT + (STATUS_BAR_HEIGHT - heart_img.get_height()) // 2
+    
+    # Reduz o espaçamento entre corações se a tela for pequena
+    heart_spacing = min(35, WIDTH * 0.05)  # Espaçamento responsivo baseado na largura
     
     for i in range(3):
         if i < sudoku.lives:
-            screen.blit(heart_img, (heart_x_start + i * 35, heart_y))
+            # Desenha o coração cheio (imagem carregada)
+            screen.blit(heart_img, (heart_x_start + i * heart_spacing, heart_y))
         else:
-            # Coração vazio (contorno)
-            pygame.draw.polygon(screen, RED, 
-                [(heart_x_start + i * 35 + 15, heart_y + 5),
-                 (heart_x_start + i * 35 + 25, heart_y + 15),
-                 (heart_x_start + i * 35 + 15, heart_y + 25),
-                 (heart_x_start + i * 35 + 5, heart_y + 15)], 1)
+            # Para corações vazios, desenha a imagem com transparência ou contorno
+            # Cria uma versão transparente do coração para representar vidas perdidas
+            empty_heart = heart_img.copy()
+            empty_heart.set_alpha(70)  # Define 30% de opacidade
+            screen.blit(empty_heart, (heart_x_start + i * heart_spacing, heart_y))
+            
+            # Adiciona um contorno para melhorar a visibilidade do coração vazio
+            heart_rect = pygame.Rect(heart_x_start + i * heart_spacing, heart_y, heart_img.get_width(), heart_img.get_height())
+            pygame.draw.rect(screen, RED, heart_rect, 1)
 
 def draw_game_over(sudoku):
     # Desenha uma camada semitransparente sobre o jogo
@@ -856,7 +858,8 @@ def main():
             else:
                 selected_cell = None
                 
-            draw_status_bar(message, BLACK, hint_mode)
+            # Desenha a barra de status sem exibir mensagem textual
+            draw_status_bar("", BLACK, hint_mode)
             draw_lives(sudoku)
             
             # Verificação automática após cada alteração do tabuleiro
@@ -882,6 +885,7 @@ def main():
                         # Verifica se clicou no botão de dicas
                         if HINT_BUTTON.collidepoint(mouse_pos):
                             sudoku.toggle_notes()
+                            # Mantém a variável message atualizada mas não exibe
                             message = f"Dicas {'ativadas' if HINTS_ENABLED else 'desativadas'}!"
                         # Verifica se clicou no botão de dica única
                         elif SOLVE_HINT_BUTTON.collidepoint(mouse_pos):
@@ -929,6 +933,7 @@ def main():
                                         sudoku.highlight_number = None
                                 
                                     if not hint_mode:
+                                        # Mantém a variável message atualizada mas não exibe
                                         message = "Digite um número (1-9) para preencher. Shift+1..9 para anotar."
                 # Adiciona tratamento para movimento do mouse
                 elif event.type == pygame.MOUSEMOTION:
@@ -995,12 +1000,19 @@ def main():
                                 continue
                         
                         # Anotação: Shift+número (incluindo teclado numérico)
-                        # Verificação melhorada para reconhecer corretamente Shift+teclado numérico
                         if event.key in NUMERIC_KEYS and NUMERIC_KEYS[event.key] > 0:
                             num = NUMERIC_KEYS[event.key]
                             
-                            # Modo de anotação (Shift pressionado)
-                            if is_shift_pressed:
+                            # Corrigido: Identifica explicitamente teclas do teclado numérico
+                            numpad_keys = [pygame.K_KP0, pygame.K_KP1, pygame.K_KP2, pygame.K_KP3, pygame.K_KP4, 
+                                          pygame.K_KP5, pygame.K_KP6, pygame.K_KP7, pygame.K_KP8, pygame.K_KP9]
+                            
+                            # Considera como anotação quando:
+                            # - Shift está sendo pressionado OU
+                            # - A tecla é do teclado numérico (estamos forçando todas as teclas numéricas a serem anotações)
+                            annotation_mode = is_shift_pressed or event.key in numpad_keys
+                            
+                            if annotation_mode:
                                 if sudoku.original_board[row][col] == 0 and sudoku.board[row][col] == 0:
                                     # Salva o estado antes de modificar
                                     sudoku.save_state()
@@ -1010,7 +1022,7 @@ def main():
                                     else:
                                         sudoku.notes[row][col].add(num)
                                     message = f"Anotação {num} {'removida' if num not in sudoku.notes[row][col] else 'adicionada'}."
-                            # Modo de inserção normal (sem Shift)
+                            # Modo de inserção normal (sem Shift e não é tecla numérica)
                             else:
                                 # Salva o estado antes de tentar inserir um número
                                 sudoku.save_state()
