@@ -116,16 +116,19 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 try:
     ORIGINAL_BOMBA_IMG = pygame.image.load(os.path.join(script_dir, 'img', 'bomba.png'))
     ORIGINAL_FLAG_IMG = pygame.image.load(os.path.join(script_dir, 'img', 'flag.png'))
+    ORIGINAL_HEART_IMG = pygame.image.load(os.path.join(script_dir, 'img', 'coracao.png'))
     base_dir = script_dir
 except FileNotFoundError:
     # Fallback to full path if relative path doesn't work
     base_dir = "c:\\Users\\BrunoLocal.BRUNO-note.000\\Downloads\\x\\CÓDIGOS\\campo_minado"
     ORIGINAL_BOMBA_IMG = pygame.image.load(os.path.join(base_dir, 'img', 'bomba.png'))
     ORIGINAL_FLAG_IMG = pygame.image.load(os.path.join(base_dir, 'img', 'flag.png'))
+    ORIGINAL_HEART_IMG = pygame.image.load(os.path.join(base_dir, 'img', 'coracao.png'))
 
 # Scale images according to current BLOCKSIZE
 BOMBA_IMG = pygame.transform.scale(ORIGINAL_BOMBA_IMG, (BLOCKSIZE-6, BLOCKSIZE-6))
 FLAG_IMG = pygame.transform.scale(ORIGINAL_FLAG_IMG, (BLOCKSIZE-6, BLOCKSIZE-6))
+HEART_IMG = pygame.transform.scale(ORIGINAL_HEART_IMG, (25, 25))  # Fixed size for hearts
 
 # Create sound effects
 try:
@@ -223,9 +226,10 @@ except Exception as e:
 
 # Function to update images when zoom changes
 def update_images_for_zoom():
-    global BOMBA_IMG, FLAG_IMG
+    global BOMBA_IMG, FLAG_IMG, HEART_IMG
     BOMBA_IMG = pygame.transform.scale(ORIGINAL_BOMBA_IMG, (BLOCKSIZE-6, BLOCKSIZE-6))
     FLAG_IMG = pygame.transform.scale(ORIGINAL_FLAG_IMG, (BLOCKSIZE-6, BLOCKSIZE-6))
+    HEART_IMG = pygame.transform.scale(ORIGINAL_HEART_IMG, (25, 25))  # Keep heart size consistent
 
 def apply_auto_resize():
     """Apply auto-resize based on current window size and board dimensions."""
@@ -271,6 +275,7 @@ class Board:
         self.mines = mines
         self.difficulty = difficulty  # Track difficulty level
         self.board = [[{'state': HIDDEN, 'value': 0, 'marked_for_hint': False} for _ in range(width)] for _ in range(height)]
+        self.lives = 3  # Start with 3 lives
         self.started = False
         self.game_over = False
         self.win = False
@@ -349,11 +354,27 @@ class Board:
         cell['state'] = REVEALED
         self.revealed_cells += 1
         
-        # If it's a mine, game over
+        # If it's a mine, lose a life or game over
         if cell['value'] == -1:
-            self.game_over = True
-            self.reveal_all_mines()
-            return
+            if self.lives > 1:
+                self.lives -= 1
+                # Mark this mine as "defused" by changing its value
+                cell['value'] = -2  # Special value for defused mine
+                
+                # Play explosion sound but don't end game
+                if "explosion" in SOUNDS and SOUND_ENABLED:
+                    SOUNDS["explosion"].play()
+                
+                # Create an explosion effect for feedback
+                # But don't end the game yet
+                return
+            else:
+                # No more lives left, game over
+                self.lives = 0
+                self.game_over = True
+                self.end_game()  # Call end_game to set end_time properly
+                self.reveal_all_mines()
+                return
             
         # If it's an empty cell (no neighboring mines), reveal neighboring cells
         if cell['value'] == 0:
@@ -368,7 +389,7 @@ class Board:
             self.win = True
             self.game_over = True
             self.flag_all_mines()
-    
+
     def toggle_flag(self, x, y):
         if not (0 <= x < self.width and 0 <= y < self.height):
             return
@@ -386,9 +407,11 @@ class Board:
     def reveal_all_mines(self):
         for y in range(self.height):
             for x in range(self.width):
+                # Reveal all mines except those already defused
                 if self.board[y][x]['value'] == -1:
                     self.board[y][x]['state'] = REVEALED
-    
+                # Note: we leave defused mines (-2) as they are
+
     def flag_all_mines(self):
         for y in range(self.height):
             for x in range(self.width):
@@ -404,6 +427,7 @@ class Board:
         return int(time.time() - self.start_time)
     
     def end_game(self):
+        """End the current game and set the end time."""
         self.game_over = True
         self.end_time = time.time()
         
@@ -724,6 +748,11 @@ def draw_board(board):
     mines_text = mines_font.render(f"{mines_left:03d}", True, RED)
     DISPLAYSURF.blit(mines_text, (20, 15))
     
+    # Draw lives (hearts) to the right of the mine counter
+    heart_x = 110
+    for i in range(board.lives):
+        DISPLAYSURF.blit(HEART_IMG, (heart_x + i * 30, 18))
+    
     # Draw smiley face in the middle
     face_size = 40
     face_x = (WINDOWWIDTH - face_size) // 2
@@ -827,6 +856,15 @@ def draw_board(board):
                 # Draw mine if revealed
                 if cell['value'] == -1:
                     DISPLAYSURF.blit(BOMBA_IMG, (rect[0] + 3, rect[1] + 3))
+                # Draw defused mine (special case)
+                elif cell['value'] == -2:
+                    # Draw a defused mine (crossed out)
+                    DISPLAYSURF.blit(BOMBA_IMG, (rect[0] + 3, rect[1] + 3))
+                    # Draw an X over it
+                    pygame.draw.line(DISPLAYSURF, RED, (rect[0] + 5, rect[1] + 5), 
+                                   (rect[0] + BLOCKSIZE - 5, rect[1] + BLOCKSIZE - 5), 3)
+                    pygame.draw.line(DISPLAYSURF, RED, (rect[0] + BLOCKSIZE - 5, rect[1] + 5), 
+                                   (rect[0] + 5, rect[1] + BLOCKSIZE - 5), 3)
                 # Draw number if it's a number cell
                 elif cell['value'] > 0:
                     number_font = pygame.font.Font(None, 28)
@@ -884,7 +922,7 @@ def draw_board(board):
     if board.game_over or board.paused:
         # Semi-transparent overlay
         overlay = pygame.Surface((WINDOWWIDTH, WINDOWHEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 128))  # Semi-transparent black
+        overlay.fill((0, 0, 0, 180))  # More opaque black for better readability
         DISPLAYSURF.blit(overlay, (0, 0))
         
         button_font = pygame.font.Font(None, 36)
@@ -960,31 +998,56 @@ def draw_board(board):
                 for i, text in enumerate(stats_texts):
                     stats_text = stats_font.render(text, True, WHITE)
                     DISPLAYSURF.blit(stats_text, (WINDOWWIDTH // 2 - 100, WINDOWHEIGHT // 3 + 50 + i * 25))
-                
+    
             else:
                 message_text = message_font.render("GAME OVER", True, RED)
                 
+                # Draw some details about the game
+                stats_font = pygame.font.Font(None, 24)
+                stats_texts = [
+                    f"Todas as vidas perdidas!",
+                    f"Tempo: {board.get_elapsed_time()} segundos",
+                    f"Células reveladas: {board.revealed_cells} / {board.total_cells - board.mines}",
+                    f"Bandeiras colocadas: {board.flags_placed} / {board.mines}"
+                ]
+                
+                for i, text in enumerate(stats_texts):
+                    stats_text = stats_font.render(text, True, WHITE)
+                    DISPLAYSURF.blit(stats_text, (WINDOWWIDTH // 2 - 100, WINDOWHEIGHT // 3 + 30 + i * 25))
+    
+            # Display the message text that was set above
             text_rect = message_text.get_rect(center=(WINDOWWIDTH // 2, WINDOWHEIGHT // 4))
             DISPLAYSURF.blit(message_text, text_rect)
-            
-            # Draw "Try Again" button
-            button_x = (WINDOWWIDTH - 200) // 2
-            button_y = WINDOWHEIGHT // 2 + 30
-            pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, 200, 50))
-            pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, 200, 50), 2)
-            
-            button_text = button_font.render("Tentar Novamente", True, theme["text"])
-            text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
-            DISPLAYSURF.blit(button_text, text_rect)
-            
-            # Draw "Main Menu" button
-            button_y = WINDOWHEIGHT // 2 + 90
-            pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, 200, 50))
-            pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, 200, 50), 2)
-            
-            button_text = button_font.render("Menu Principal", True, theme["text"])
-            text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
-            DISPLAYSURF.blit(button_text, text_rect)
+    
+    # Draw buttons only if the game is over (not when paused)
+    if board.game_over:
+        # Draw "Try Again" button
+        button_x = (WINDOWWIDTH - 200) // 2
+        button_y = WINDOWHEIGHT // 2 + 30
+        pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, 200, 50))
+        pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, 200, 50), 2)
+        
+        button_text = button_font.render("Tentar Novamente", True, theme["text"])
+        text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
+        DISPLAYSURF.blit(button_text, text_rect)
+        
+        # Draw "Choose Difficulty" button
+        button_y = WINDOWHEIGHT // 2 + 90
+        pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, 200, 50))
+        pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, 200, 50), 2)
+        
+        button_text = button_font.render("Escolher Dificuldade", True, theme["text"])
+        text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
+        DISPLAYSURF.blit(button_text, text_rect)
+        
+        # Draw "Main Menu" button
+        button_y = WINDOWHEIGHT // 2 + 150
+        pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, 200, 50))
+        pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, 200, 50), 2)
+        
+        button_text = button_font.render("Menu Principal", True, theme["text"])
+        text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
+        DISPLAYSURF.blit(button_text, text_rect)
     
     # Draw control buttons in the game
     if not board.paused and not board.game_over:
@@ -1441,6 +1504,7 @@ def check_smiley_click(x, y):
     """Check if the smiley face was clicked"""
     face_size = 40
     face_x = (WINDOWWIDTH - face_size) // 2
+
     face_y = (60 - face_size) // 2
     return face_x <= x <= face_x + face_size and face_y <= y <= face_y + face_size
 
@@ -2012,11 +2076,19 @@ def main():
                                     hint_active = False
                                     continue
                                 
+                                # Choose difficulty button (new)
+                                difficulty_button = (button_x, WINDOWHEIGHT // 2 + 90, 200, 50)
+                                if check_rect_click(event.pos, difficulty_button):
+                                    current_screen = "DIFFICULTY"
+                                    play_sound("click")
+                                    continue
+                                
                                 # Menu button
-                                menu_button = (button_x, WINDOWHEIGHT // 2 + 90, 200, 50)
+                                menu_button = (button_x, WINDOWHEIGHT // 2 + 150, 200, 50)
                                 if check_rect_click(event.pos, menu_button):
                                     current_screen = "START"
                                     play_sound("click")
+                                    continue
                             
                             # Normal gameplay
                             else:
@@ -2341,7 +2413,6 @@ def save_screenshot():
         DISPLAYSURF.blit(shadow_text, shadow_rect)
         DISPLAYSURF.blit(msg_text, msg_rect)
         
-        DISPLAYSURF.blit(original_surface, (0, 0))
         # Show path message
         path_font = pygame.font.Font(None, 24)
         path_text = path_font.render(f"Salvo em: {screenshots_dir}", True, (0, 0, 0))
@@ -2350,6 +2421,8 @@ def save_screenshot():
         
         # Update display
         pygame.display.update()
+        
+        # Short delay to show message
         pygame.time.delay(800)  # Show message for 0.8 seconds
         
         # Restore original display
