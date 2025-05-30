@@ -1302,10 +1302,15 @@ def draw_statistics_screen():
         stat_rect = stat_text.get_rect(midleft=(WINDOWWIDTH // 4, stats_y + i * stats_spacing))
         DISPLAYSURF.blit(stat_text, stat_rect)
     
-    # Back button
+    # Back button - position it lower on the screen to avoid overlap with stats
     button_width, button_height = 200, 50
     button_x = (WINDOWWIDTH - button_width) // 2
-    button_y = WINDOWHEIGHT - 100
+    
+    # Calculate position to ensure button doesn't overlap statistics
+    # Use the last stat position + spacing + button height + padding
+    last_stat_y = stats_y + (len(stats_list) - 1) * stats_spacing
+    button_y = max(last_stat_y + stats_spacing + 20, WINDOWHEIGHT - 80)
+    
     pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, button_width, button_height))
     pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, button_width, button_height), 2)
     
