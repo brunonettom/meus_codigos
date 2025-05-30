@@ -1203,7 +1203,9 @@ def draw_load_game_screen():
     # Get saved games
     saved_games = Board.list_saved_games()
     
-    button_width, button_height = WINDOWWIDTH - 100
+    # Fix: Define button_width and button_height as separate variables
+    button_width = WINDOWWIDTH - 100
+    button_height = 80  # Define an appropriate height
     button_margin = 10
     button_start_y = 150
     
@@ -2130,7 +2132,7 @@ def show_tip_of_the_day():
         "Pressione F1 para ver todos os atalhos de teclado disponíveis.",
         "Use o modo auto-redimensionar (Ctrl+A) para adaptar o jogo à janela.",
         "Em caso de dúvida, use uma dica pressionando H.",
-        "Quando você marcar todas as minas ao redor de um número, clique nele para revelar as células seguras.",
+        "Quando você marcar todas as minas ao redor de um número, clique nele para revelar o restante.",
         "Números indicam quantas minas estão adjacentes a essa célula.",
         "Pressione F12 para capturar uma tela do seu jogo.",
         "Use Shift+Clique como alternativa ao botão direito para marcar bandeiras.",
@@ -2197,9 +2199,9 @@ def show_splash_screen():
     """Show a splash screen on startup."""
     global DISPLAYSURF, WINDOWWIDTH, WINDOWHEIGHT
     
-    # Create a temporary display for the splash screen
-    DISPLAYSURF = pygame.display.set_mode((480, 480))
-    WINDOWWIDTH, WINDOWHEIGHT = 480, 480
+    # Create a temporary display for the splash screen with a larger size
+    WINDOWWIDTH, WINDOWHEIGHT = 800, 600  # Larger initial window size
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
     pygame.display.set_caption('Campo Minado')
     
     # Fill background
@@ -2351,12 +2353,17 @@ def save_screenshot():
         return False
 
 if __name__ == "__main__":
+    # Set default window size to something larger
+    WINDOWWIDTH = 800
+    WINDOWHEIGHT = 600
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
+    
     # Show splash screen
     show_splash_screen()
     
-    # Show tip of the day if tips are enabled
-    if show_tips:
-        show_tip_of_the_day()
+    # Skip tip of the day to start faster
+    # if show_tips:
+    #     show_tip_of_the_day()
     
     # Start the game
-    main() 
+    main()
