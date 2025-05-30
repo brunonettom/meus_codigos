@@ -934,7 +934,7 @@ def draw_board(board):
             print(f"Drawing pause overlay at {time.time()}")
         
         button_font = pygame.font.Font(None, 36)
-          if board.paused:
+        if board.paused:
             # Draw "PAUSED" text - make it larger and more noticeable
             pause_font = pygame.font.Font(None, 90)
             pause_text = pause_font.render("PAUSED", True, (255, 255, 0))  # Bright yellow for visibility
@@ -1839,8 +1839,7 @@ def main():
                             # Restore game if it wasn't paused before
                             if not was_paused and game_board:
                                 game_board.unpause_game()
-                    
-                    # Handle escape key
+                      # Handle escape key
                     elif event.key == K_ESCAPE:
                         if current_screen == "GAME" and game_board and not game_board.game_over:
                             # Pause the game
@@ -1850,8 +1849,14 @@ def main():
                                 draw_board(game_board)
                                 pygame.display.update()
                                 play_sound("click")
+                            else:
+                                # Unpause if ESC is pressed while paused
+                                game_board.unpause_game()
+                                play_sound("click")                        
                         elif current_screen in ["DIFFICULTY", "SETTINGS", "STATISTICS", "LOAD_GAME", "CUSTOM"]:
-                            # Go back to main menu
+                            # Go back to main menu and ensure any existing game is unpaused
+                            if game_board and game_board.paused:
+                                game_board.unpause_game()
                             current_screen = "START"
                         elif current_screen == "START":
                             # Exit game
@@ -1905,9 +1910,11 @@ def main():
                     elif current_screen == "DIFFICULTY":
                         buttons = draw_difficulty_screen()
                         action = check_button_click(event.pos, buttons)
-                        
                         if action:
                             if action == "BACK":
+                                # Ensure any existing game state is unpause before going back to main menu
+                                if game_board and game_board.paused:
+                                    game_board.unpause_game()
                                 current_screen = "START"
                             elif action == "CUSTOM":
                                 current_screen = "CUSTOM"
@@ -1938,6 +1945,9 @@ def main():
                         action = check_button_click(event.pos, buttons)
                         if action:
                             if action == "BACK":
+                                # Ensure any existing game state is unpause before going back to main menu
+                                if game_board and game_board.paused:
+                                    game_board.unpause_game()
                                 current_screen = "START"
                             elif action == "TOGGLE_THEME":
                                 toggle_theme()
@@ -2107,12 +2117,13 @@ def main():
                                     save_screenshot()
                                     game_board.paused = True
                                     play_sound("click")
-                                
-                                # Quit button
+                                  # Quit button
                                 quit_button = (button_x, WINDOWHEIGHT // 2 + 180, 200, 50)
                                 if check_rect_click(event.pos, quit_button):
                                     # Save game before quitting
                                     game_board.save_game()
+                                    # Unpause the game before going to menu to prevent issues when starting a new game
+                                    game_board.unpause_game()
                                     current_screen = "START"
                                     play_sound("click")
                             
@@ -2148,10 +2159,9 @@ def main():
                                 # Check for UI buttons first
                                 menu_button_x = WINDOWWIDTH - 90
                                 menu_button_y = 15                                
-                                menu_button = (menu_button_x, menu_button_y, 70, 30)
-                                # Pause button - improved with more explicit coordinates
-                                if menu_button_x <= mouse_x <= menu_button_x + 70 and menu_button_y <= mouse_y <= menu_button_y + 30:
-                                    # Direct coordinate check for debugging
+                                menu_button = (menu_button_x, menu_button_y, 70, 30)                                # Use check_rect_click for more reliable click detection
+                                if check_rect_click(event.pos, menu_button):
+                                    # Debug info
                                     print(f"Pause button clicked! x={mouse_x}, y={mouse_y}")
                                     game_board.pause_game()
                                     # Force immediate screen update to show pause menu
@@ -2183,9 +2193,11 @@ def main():
                                     play_sound("click")
                                     continue
                                 
-                                # Check if smiley face was clicked to restart
-                                if check_smiley_click(mouse_x, mouse_y):
+                                # Check if smiley face was clicked to restart                                if check_smiley_click(mouse_x, mouse_y):
                                     # Start a new game with same settings
+                                    # Ensure any paused state is cleared before creating new board
+                                    if game_board.paused:
+                                        game_board.unpause_game()
                                     game_board = Board(BOARDWIDTH, BOARDHEIGHT, MINES, game_board.difficulty)
                                     play_sound("click")
                                     hint_active = False
