@@ -31,12 +31,13 @@ SCROLL_OFFSET_Y = 0  # Offset for navigating around the board with touchpad
 ZOOM_STEP = 3  # How much to change block size with each zoom action
 AUTO_RESIZE = False  # Whether to automatically resize blocks based on window size
 show_tips = True  # Whether to show tips and hints during gameplay
+HEADER_HEIGHT = 80  # Header height (increased from 60 to 80)
 
 BOARDWIDTH = DIFFICULTY["MEDIUM"]["width"]
 BOARDHEIGHT = DIFFICULTY["MEDIUM"]["height"]
 MINES = DIFFICULTY["MEDIUM"]["mines"]
 WINDOWWIDTH = max(BOARDWIDTH * BLOCKSIZE, 480)  # Make sure window is at least 480px wide
-WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + 60  # Extra space for the scoreboard
+WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + HEADER_HEIGHT  # Use HEADER_HEIGHT instead of 60
 
 # Colors
 WHITE = (255, 255, 255)
@@ -242,7 +243,7 @@ def apply_auto_resize():
     
     # Calculate the ideal block size to fit the board in the window
     max_width = WINDOWWIDTH / game_board.width
-    max_height = (WINDOWHEIGHT - 60) / game_board.height  # Account for scoreboard
+    max_height = (WINDOWHEIGHT - HEADER_HEIGHT) / game_board.height  # Use HEADER_HEIGHT instead of 60
     
     # Choose the smaller dimension to ensure entire board fits
     new_blocksize = min(max_width, max_height, MAX_BLOCKSIZE)
@@ -257,7 +258,7 @@ def apply_auto_resize():
     
     # Center the board
     SCROLL_OFFSET_X = (WINDOWWIDTH - (game_board.width * BLOCKSIZE)) // 2
-    SCROLL_OFFSET_Y = (WINDOWHEIGHT - 60 - (game_board.height * BLOCKSIZE)) // 2
+    SCROLL_OFFSET_Y = (WINDOWHEIGHT - HEADER_HEIGHT - (game_board.height * BLOCKSIZE)) // 2  # Use HEADER_HEIGHT
     
     # Ensure minimum offset of 0
     SCROLL_OFFSET_X = max(0, SCROLL_OFFSET_X)
@@ -625,7 +626,6 @@ class Board:
         except Exception as e:
             print(f"Error saving game: {e}")
             return False
-    
     def pause_game(self):
         """Pause the game timer."""
         if self.started and not self.game_over and not self.paused:
@@ -636,6 +636,9 @@ class Board:
             if self.hint_mode_active:
                 self.hint_mode_active = False
                 self.clear_hints()
+                
+            # Force immediate visual feedback about pause state
+            print("Game paused!")
             
     def unpause_game(self):
         """Unpause the game timer."""
@@ -739,8 +742,8 @@ def draw_board(board):
     DISPLAYSURF.fill(theme["background"])
     
     # Draw the scoreboard
-    pygame.draw.rect(DISPLAYSURF, theme["scoreboard"], (0, 0, WINDOWWIDTH, 60))
-    pygame.draw.rect(DISPLAYSURF, theme["grid"], (0, 0, WINDOWWIDTH, 60), 2)
+    pygame.draw.rect(DISPLAYSURF, theme["scoreboard"], (0, 0, WINDOWWIDTH, HEADER_HEIGHT))
+    pygame.draw.rect(DISPLAYSURF, theme["grid"], (0, 0, WINDOWWIDTH, HEADER_HEIGHT), 2)
     
     # Draw mines counter (left side)
     mines_left = board.mines - board.flags_placed
@@ -803,8 +806,9 @@ def draw_board(board):
     hint_font = pygame.font.Font(None, 24)
     hint_text = hint_font.render(f"Dicas: {board.hints_available}", True, theme["text"])
     hint_width = hint_text.get_width() + 10
-    DISPLAYSURF.blit(hint_text, (WINDOWWIDTH - 20 - hint_width, 40))
-      # Draw zoom level indicator (bottom-left of scoreboard)
+    DISPLAYSURF.blit(hint_text, (WINDOWWIDTH - 20 - hint_width, 55))
+      
+    # Draw zoom level indicator (bottom-left of scoreboard)
     zoom_font = pygame.font.Font(None, 24)
     zoom_text = zoom_font.render(f"Zoom: {int(ZOOM_FACTOR * 100)}%", True, theme["text"])
     DISPLAYSURF.blit(zoom_text, (20, 40))
@@ -827,19 +831,20 @@ def draw_board(board):
     if board.started and not board.game_over:
         completion = board.get_completion_percentage()
         progress_width = int((WINDOWWIDTH - 100) * (completion / 100))
-        pygame.draw.rect(DISPLAYSURF, DARKGRAY, (50, 55, WINDOWWIDTH - 100, 3))
-        pygame.draw.rect(DISPLAYSURF, GREEN, (50, 55, progress_width, 3))
-      # Draw the game grid with offsets for scrolling
+        pygame.draw.rect(DISPLAYSURF, DARKGRAY, (50, HEADER_HEIGHT - 5, WINDOWWIDTH - 100, 3))
+        pygame.draw.rect(DISPLAYSURF, GREEN, (50, HEADER_HEIGHT - 5, progress_width, 3))
+      
+    # Draw the game grid with offsets for scrolling
     for y in range(board.height):
         for x in range(board.width):
             cell = board.board[y][x]
             rect = (x * BLOCKSIZE + SCROLL_OFFSET_X, 
-                   y * BLOCKSIZE + 60 + SCROLL_OFFSET_Y, 
+                   y * BLOCKSIZE + HEADER_HEIGHT + SCROLL_OFFSET_Y, 
                    BLOCKSIZE, BLOCKSIZE)
             
             # Check if cell is visible within the window
             if (rect[0] > WINDOWWIDTH or rect[1] > WINDOWHEIGHT or 
-                rect[0] + BLOCKSIZE < 0 or rect[1] + BLOCKSIZE < 60):
+                rect[0] + BLOCKSIZE < 0 or rect[1] + BLOCKSIZE < HEADER_HEIGHT):
                 continue  # Skip drawing this cell
             
             # Check if the game is paused (only draw revealed cells)
@@ -917,20 +922,29 @@ def draw_board(board):
                     hint_overlay = pygame.Surface((BLOCKSIZE, BLOCKSIZE), pygame.SRCALPHA)
                     hint_overlay.fill((0, 255, 0, 100))  # Semi-transparent green
                     DISPLAYSURF.blit(hint_overlay, rect)
-                
-    # Draw game end or pause overlay
+                  # Draw game end or pause overlay
     if board.game_over or board.paused:
-        # Semi-transparent overlay
+        # Semi-transparent overlay - making it more visible
         overlay = pygame.Surface((WINDOWWIDTH, WINDOWHEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))  # More opaque black for better readability
+        overlay.fill((0, 0, 0, 200))  # More opaque black for better visibility
         DISPLAYSURF.blit(overlay, (0, 0))
         
-        button_font = pygame.font.Font(None, 36)
-        
+        # Debug info for pause state
         if board.paused:
-            # Draw "PAUSED" text
-            pause_font = pygame.font.Font(None, 72)
-            pause_text = pause_font.render("PAUSED", True, WHITE)
+            print(f"Drawing pause overlay at {time.time()}")
+        
+        button_font = pygame.font.Font(None, 36)
+          if board.paused:
+            # Draw "PAUSED" text - make it larger and more noticeable
+            pause_font = pygame.font.Font(None, 90)
+            pause_text = pause_font.render("PAUSED", True, (255, 255, 0))  # Bright yellow for visibility
+            
+            # Draw text shadow for better visibility
+            shadow_text = pause_font.render("PAUSED", True, (0, 0, 0))
+            shadow_rect = shadow_text.get_rect(center=(WINDOWWIDTH // 2 + 3, WINDOWHEIGHT // 3 + 3))
+            DISPLAYSURF.blit(shadow_text, shadow_rect)
+            
+            # Main text
             text_rect = pause_text.get_rect(center=(WINDOWWIDTH // 2, WINDOWHEIGHT // 3))
             DISPLAYSURF.blit(pause_text, text_rect)
             
@@ -947,7 +961,6 @@ def draw_board(board):
             button_y = WINDOWHEIGHT // 2
             pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, 200, 50))
             pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, 200, 50), 2)
-            
             sound_status = "Ligar Sons" if not SOUND_ENABLED else "Silenciar"
             button_text = button_font.render(sound_status, True, theme["text"])
             text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
@@ -959,6 +972,8 @@ def draw_board(board):
             pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, 200, 50), 2)
             
             button_text = button_font.render("Salvar Jogo", True, theme["text"])
+            text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
+            DISPLAYSURF.blit(button_text, text_rect)
             text_rect = button_text.get_rect(center=(button_x + 100, button_y + 25))
             DISPLAYSURF.blit(button_text, text_rect)
               # Draw "Screenshot" button
@@ -1475,8 +1490,8 @@ def draw_custom_screen():
     
     # Back button
     back_text = "Voltar"
-   
-    back_width = ensure_text_fits_button(back_text, button_font, min_width=100)
+    back_font = pygame.font.Font(None, 30)
+    back_width = ensure_text_fits_button(back_text, back_font, min_width=100)
     back_height = 40
     back_x = 20
     back_y = 20
@@ -1517,12 +1532,13 @@ def check_rect_click(mouse_pos, rect):
 
 def get_cell_at_pixel(x, y):
     """Determine which cell a pixel coordinate belongs to"""
-    if y < 60:  # Clicked on scoreboard
-        return None
+    # Remove this check so UI elements in the scoreboard can be clicked
+    # if y < HEADER_HEIGHT:  # Clicked on scoreboard
+    #     return None
     
     # Apply the scroll offsets and account for zoom
     adjusted_x = (x - SCROLL_OFFSET_X) // BLOCKSIZE
-    adjusted_y = ((y - 60) - SCROLL_OFFSET_Y) // BLOCKSIZE
+    adjusted_y = ((y - HEADER_HEIGHT) - SCROLL_OFFSET_Y) // BLOCKSIZE
     
     if (0 <= adjusted_x < BOARDWIDTH) and (0 <= adjusted_y < BOARDHEIGHT):
         return (adjusted_x, adjusted_y)
@@ -1680,7 +1696,6 @@ def main():
                   # Handle keyboard shortcuts
                 if event.type == KEYDOWN:
                     ctrl_pressed = pygame.key.get_mods() & pygame.KMOD_CTRL
-                    
                     # Take screenshot with F12 or Ctrl+S
                     if event.key == K_F12 or (ctrl_pressed and event.key == K_PRINT):
                         saved = save_screenshot()
@@ -1714,6 +1729,7 @@ def main():
                         if show_tips:
                             show_tip("Dicas ativadas! Você receberá sugestões durante o jogo.")
                             
+
                     # Center the view with C
                     elif event.key == K_c:
                         SCROLL_OFFSET_X = 0
@@ -1726,15 +1742,19 @@ def main():
                             apply_auto_resize()
                             if show_tips:
                                 show_tip("Auto-redimensionamento ativado. O jogo se ajustará automaticamente ao tamanho da janela.")
-                    
-                    # Pause game with P
+                      # Pause game with P
                     elif event.key == K_p and current_screen == "GAME" and game_board and game_board.started and not game_board.game_over:
                         if not game_board.paused:
                             game_board.pause_game()
+                            # Force immediate screen update to show pause menu
+                            draw_board(game_board)
+                            pygame.display.update()
+                            play_sound("click")
                         else:
                             game_board.unpause_game()
-                            
-                    # Save game with Ctrl+S
+                            draw_board(game_board)
+                            pygame.display.update()
+                            # Save game with Ctrl+S
                     elif event.key == K_s and ctrl_pressed and current_screen == "GAME" and game_board and game_board.started and not game_board.game_over:
                         game_board.save_game()
                           # Get hint with H - modified to toggle hint mode
@@ -1752,6 +1772,7 @@ def main():
                             if not was_paused:
                                 game_board.pause_game()
                             
+
                             # Draw help overlay
                             help_overlay = pygame.Surface((WINDOWWIDTH, WINDOWHEIGHT), pygame.SRCALPHA)
                             help_overlay.fill((0, 0, 0, 200))  # Darker overlay for help
@@ -1825,6 +1846,10 @@ def main():
                             # Pause the game
                             if not game_board.paused:
                                 game_board.pause_game()
+                                # Force immediate screen update to show pause menu
+                                draw_board(game_board)
+                                pygame.display.update()
+                                play_sound("click")
                         elif current_screen in ["DIFFICULTY", "SETTINGS", "STATISTICS", "LOAD_GAME", "CUSTOM"]:
                             # Go back to main menu
                             current_screen = "START"
@@ -1901,7 +1926,7 @@ def main():
                                 
                                 # Update window size
                                 WINDOWWIDTH = max(BOARDWIDTH * BLOCKSIZE, 480)
-                                WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + 60
+                                WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + HEADER_HEIGHT  # Use HEADER_HEIGHT instead of 60
                                 DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
                                 
                                 # Start game
@@ -1967,7 +1992,7 @@ def main():
                                     
                                     # Update window size
                                     WINDOWWIDTH = max(BOARDWIDTH * BLOCKSIZE, 480)
-                                    WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + 60
+                                    WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + HEADER_HEIGHT  # Use HEADER_HEIGHT instead of 60
                                     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
                                     
                                     # Switch to game
@@ -2010,7 +2035,7 @@ def main():
                                     
                                     # Update window size
                                     WINDOWWIDTH = max(BOARDWIDTH * BLOCKSIZE, 480)
-                                    WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + 60
+                                    WINDOWHEIGHT = BOARDHEIGHT * BLOCKSIZE + HEADER_HEIGHT  # Use HEADER_HEIGHT instead of 60
                                     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
                                     
                                     # Start game
@@ -2122,12 +2147,16 @@ def main():
                             else:
                                 # Check for UI buttons first
                                 menu_button_x = WINDOWWIDTH - 90
-                                menu_button_y = 15
+                                menu_button_y = 15                                
                                 menu_button = (menu_button_x, menu_button_y, 70, 30)
-                                
-                                # Pause button
-                                if check_rect_click(event.pos, menu_button):
+                                # Pause button - improved with more explicit coordinates
+                                if menu_button_x <= mouse_x <= menu_button_x + 70 and menu_button_y <= mouse_y <= menu_button_y + 30:
+                                    # Direct coordinate check for debugging
+                                    print(f"Pause button clicked! x={mouse_x}, y={mouse_y}")
                                     game_board.pause_game()
+                                    # Force immediate screen update to show pause menu
+                                    draw_board(game_board)
+                                    pygame.display.update()
                                     play_sound("click")
                                     continue
                                     
@@ -2140,7 +2169,8 @@ def main():
                                     toggle_theme()
                                     play_sound("click")
                                     continue
-                                      # Hint button
+                                      
+                                # Hint button
                                 hint_button_x = theme_button_x - 80
                                 hint_button_y = theme_button_y
                                 hint_button = (hint_button_x, hint_button_y, 70, 30)
@@ -2151,6 +2181,14 @@ def main():
                                     game_board.clear_hints()
                                     hint_active = game_board.hint_mode_active
                                     play_sound("click")
+                                    continue
+                                
+                                # Check if smiley face was clicked to restart
+                                if check_smiley_click(mouse_x, mouse_y):
+                                    # Start a new game with same settings
+                                    game_board = Board(BOARDWIDTH, BOARDHEIGHT, MINES, game_board.difficulty)
+                                    play_sound("click")
+                                    hint_active = False
                                     continue
                                 
                                 # Process cell clicks
