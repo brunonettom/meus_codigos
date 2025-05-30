@@ -1162,9 +1162,10 @@ def draw_difficulty_screen():
     DISPLAYSURF.blit(title_text, title_rect)
     
     # Difficulty buttons
-    button_width, button_height = 200, 50
+    button_height = 50
     button_margin = 20
     button_start_y = 150
+    button_font = pygame.font.Font(None, 36)
     
     difficulties = [
         ("Fácil", "EASY", "9x9, 10 minas"),
@@ -1173,6 +1174,12 @@ def draw_difficulty_screen():
         ("Infinito", "INFINITE", "50x50, 400 minas"),
         ("Personalizado", "CUSTOM", "Defina o tamanho")
     ]
+    
+    # Calculate the maximum width needed for all buttons
+    button_width = 200
+    for text, _, _ in difficulties:
+        width = ensure_text_fits_button(text, button_font, min_width=200)
+        button_width = max(button_width, width)
     
     buttons = []
     for i, (text, diff, desc) in enumerate(difficulties):
@@ -1184,7 +1191,6 @@ def draw_difficulty_screen():
         pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, button_width, button_height), 2)
         
         # Button text
-        button_font = pygame.font.Font(None, 36)
         button_text = button_font.render(text, True, theme["text"])
         text_rect = button_text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2 - 8))
         DISPLAYSURF.blit(button_text, text_rect)
@@ -1198,14 +1204,16 @@ def draw_difficulty_screen():
         buttons.append((button_x, button_y, button_width, button_height, diff))
     
     # Back button
-    back_width, back_height = 100, 40
+    back_text = "Voltar"
+    back_font = pygame.font.Font(None, 30)
+    back_width = ensure_text_fits_button(back_text, back_font, min_width=100)
+    back_height = 40
     back_x = 20
     back_y = 20
     pygame.draw.rect(DISPLAYSURF, theme["button"], (back_x, back_y, back_width, back_height))
     pygame.draw.rect(DISPLAYSURF, theme["grid"], (back_x, back_y, back_width, back_height), 2)
     
-    back_font = pygame.font.Font(None, 30)
-    back_text = back_font.render("Voltar", True, theme["text"])
+    back_text = back_font.render(back_text, True, theme["text"])
     back_rect = back_text.get_rect(center=(back_x + back_width // 2, back_y + back_height // 2))
     DISPLAYSURF.blit(back_text, back_rect)
     
@@ -1223,10 +1231,13 @@ def draw_settings_screen():
     title_text = title_font.render("Configurações", True, theme["text"])
     title_rect = title_text.get_rect(center=(WINDOWWIDTH // 2, 80))
     DISPLAYSURF.blit(title_text, title_rect)
-      # Settings options
-    button_width, button_height = 250, 50
+    
+    # Settings options
+    button_height = 50
     button_margin = 20
     button_start_y = 150
+    button_font = pygame.font.Font(None, 36)
+    
     settings = [
         ("Tema: " + CURRENT_THEME, "TOGGLE_THEME"),
         ("Sons: " + ("Ligado" if SOUND_ENABLED else "Desligado"), "TOGGLE_SOUND"),
@@ -1235,22 +1246,27 @@ def draw_settings_screen():
         ("Redefinir Estatísticas", "RESET_STATS")
     ]
     
+    # Calculate the maximum width needed for all buttons
+    max_button_width = 0
+    for text, _ in settings:
+        button_width = ensure_text_fits_button(text, button_font, min_width=400, padding=40)
+        max_button_width = max(max_button_width, button_width)
+    
     buttons = []
     for i, (text, action) in enumerate(settings):
-        button_x = (WINDOWWIDTH - button_width) // 2
+        button_x = (WINDOWWIDTH - max_button_width) // 2
         button_y = button_start_y + i * (button_height + button_margin)
         
         # Draw button
-        pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, button_width, button_height))
-        pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, button_width, button_height), 2)
+        pygame.draw.rect(DISPLAYSURF, theme["button"], (button_x, button_y, max_button_width, button_height))
+        pygame.draw.rect(DISPLAYSURF, theme["grid"], (button_x, button_y, max_button_width, button_height), 2)
         
         # Button text
-        button_font = pygame.font.Font(None, 36)
         button_text = button_font.render(text, True, theme["text"])
-        text_rect = button_text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
+        text_rect = button_text.get_rect(center=(button_x + max_button_width // 2, button_y + button_height // 2))
         DISPLAYSURF.blit(button_text, text_rect)
         
-        buttons.append((button_x, button_y, button_width, button_height, action))
+        buttons.append((button_x, button_y, max_button_width, button_height, action))
     
     # Back button
     back_width, back_height = 100, 40
@@ -1442,29 +1458,36 @@ def draw_custom_screen():
     input_fields.append(("mines", mines_field))
     
     # Start button
-    button_width, button_height = 200, 50
+    button_font = pygame.font.Font(None, 36)
+    button_text = "Iniciar Jogo"
+    button_width = ensure_text_fits_button(button_text, button_font, min_width=200)
+    button_height = 50
     button_x = (WINDOWWIDTH - button_width) // 2
     button_y = 340
     pygame.draw.rect(DISPLAYSURF, LIGHTBLUE, (button_x, button_y, button_width, button_height))
     pygame.draw.rect(DISPLAYSURF, DARKGRAY, (button_x, button_y, button_width, button_height), 2)
-      # Button text
-    button_font = pygame.font.Font(None, 36)
-    button_text = button_font.render("Iniciar Jogo", True, BLACK)
+    
+    # Button text
+    button_text = button_font.render(button_text, True, BLACK)
     text_rect = button_text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
     DISPLAYSURF.blit(button_text, text_rect)
     start_button = (button_x, button_y, button_width, button_height)
     
     # Back button
-    back_width, back_height = 100, 40
+    back_text = "Voltar"
+   
+    back_width = ensure_text_fits_button(back_text, button_font, min_width=100)
+    back_height = 40
     back_x = 20
     back_y = 20
     pygame.draw.rect(DISPLAYSURF, LIGHTBLUE, (back_x, back_y, back_width, back_height))
     pygame.draw.rect(DISPLAYSURF, DARKGRAY, (back_x, back_y, back_width, back_height), 2)
     
-    back_text = button_font.render("Voltar", True, BLACK)
+    back_text = button_font.render(back_text, True, BLACK)
     back_rect = back_text.get_rect(center=(back_x + back_width // 2, back_y + back_height // 2))
     DISPLAYSURF.blit(back_text, back_rect)
     back_button = (back_x, back_y, back_width, back_height)
+    
     
     return input_fields, start_button, back_button
 
@@ -2439,6 +2462,13 @@ def save_screenshot():
         print(f"Error saving screenshot: {e}")
         return False
 
+def ensure_text_fits_button(text, font, min_width=200, padding=20):
+    """Ensure text fits within a button by calculating required width.
+    Returns the width needed to fit the text with padding."""
+    text_surface = font.render(text, True, (0, 0, 0))  # Color doesn't matter for size calculation
+    required_width = text_surface.get_width() + padding
+    return max(min_width, required_width)
+    
 # Skip tip of the day to start faster
 show_splash_screen()    # Show splash screen
 DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
