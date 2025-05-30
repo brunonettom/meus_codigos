@@ -279,7 +279,8 @@ class Board:
         self.revealed_cells = 0
         self.total_cells = width * height
         self.hints_used = 0
-        self.hints_available = 3  # Default hints
+        self.hints_available = 999  # Unlimited hints
+        self.hint_mode_active = False  # New property to track if hint mode is active
         self.paused = False
         self.pause_start_time = 0
         self.total_pause_time = 0
@@ -406,6 +407,11 @@ class Board:
         self.game_over = True
         self.end_time = time.time()
         
+        # Turn off hint mode when the game ends
+        if self.hint_mode_active:
+            self.hint_mode_active = False
+            self.clear_hints()
+        
     def count_adjacent_flags(self, x, y):
         """Count the number of flagged cells around the given position."""
         flag_count = 0
@@ -518,6 +524,31 @@ class Board:
             for x in range(self.width):
                 self.board[y][x]['marked_for_hint'] = False
     
+    def peek_cell(self, x, y):
+        """Show cell content as hint without exploding mines or changing game state."""
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return
+        
+        # Only allow peeking if there are hints available
+        if self.hints_available <= 0:
+            return
+        
+        cell = self.board[y][x]
+        
+        # If the cell is already revealed or marked for hint, do nothing
+        if cell['state'] == REVEALED or cell['marked_for_hint']:
+            return
+        
+        # Mark the cell for visualization in hint mode
+        cell['marked_for_hint'] = True
+        
+        # Decrement available hints
+        self.hints_available -= 1
+        self.hints_used += 1
+        
+        # No need to check game over or win condition since we're just peeking
+        return cell['value']
+    
     def save_game(self, filename=None):
         """Save the current game state to a file."""
         if not self.started:
@@ -561,8 +592,7 @@ class Board:
             "revealed_cells": self.revealed_cells,
             "hints_available": self.hints_available,
             "hints_used": self.hints_used,
-            "save_date": datetime.datetime.now().isoformat()
-        }
+            "save_date": datetime.datetime.now().isoformat()        }
         
         try:
             with open(save_path, 'w') as f:
@@ -577,6 +607,11 @@ class Board:
         if self.started and not self.game_over and not self.paused:
             self.paused = True
             self.pause_start_time = time.time()
+            
+            # Automatically turn off hint mode when pausing
+            if self.hint_mode_active:
+                self.hint_mode_active = False
+                self.clear_hints()
             
     def unpause_game(self):
         """Unpause the game timer."""
@@ -818,10 +853,32 @@ def draw_board(board):
                 
             # Draw hint highlight if cell is marked for hint
             if cell['marked_for_hint']:
-                # Draw pulsing highlight around cell
-                pulse = int((math.sin(time.time() * 6) + 1) * 127)  # Pulsing effect
-                highlight_color = (0, 255, pulse)
-                pygame.draw.rect(DISPLAYSURF, highlight_color, rect, 3)  # Thicker border
+                # If it's a mine, show the mine with a hint overlay
+                if cell['value'] == -1:
+                    # Draw mine with hint overlay
+                    DISPLAYSURF.blit(BOMBA_IMG, (rect[0] + 3, rect[1] + 3))
+                    # Draw semi-transparent hint overlay
+                    hint_overlay = pygame.Surface((BLOCKSIZE, BLOCKSIZE), pygame.SRCALPHA)
+                    hint_overlay.fill((0, 255, 0, 100))  # Semi-transparent green
+                    DISPLAYSURF.blit(hint_overlay, rect)
+                # If it's a number, show the number with a hint overlay
+                elif cell['value'] > 0:
+                    # Draw number
+                    number_font = pygame.font.Font(None, 28)
+                    color = COLORS[cell['value']] if CURRENT_THEME == "LIGHT" else COLORS_DARK[cell['value']]
+                    text = number_font.render(str(cell['value']), True, color)
+                    text_rect = text.get_rect(center=(rect[0] + BLOCKSIZE//2, rect[1] + BLOCKSIZE//2))
+                    DISPLAYSURF.blit(text, text_rect)
+                    # Draw hint overlay
+                    hint_overlay = pygame.Surface((BLOCKSIZE, BLOCKSIZE), pygame.SRCALPHA)
+                    hint_overlay.fill((0, 255, 0, 100))  # Semi-transparent green
+                    DISPLAYSURF.blit(hint_overlay, rect)
+                # If it's empty, show with a hint overlay
+                else:
+                    # Draw hint overlay
+                    hint_overlay = pygame.Surface((BLOCKSIZE, BLOCKSIZE), pygame.SRCALPHA)
+                    hint_overlay.fill((0, 255, 0, 100))  # Semi-transparent green
+                    DISPLAYSURF.blit(hint_overlay, rect)
                 
     # Draw game end or pause overlay
     if board.game_over or board.paused:
@@ -951,17 +1008,24 @@ def draw_board(board):
         theme_text = menu_font.render("Tema", True, theme["text"])
         text_rect = theme_text.get_rect(center=(theme_button_x + 35, theme_button_y + 15))
         DISPLAYSURF.blit(theme_text, text_rect)
-        
-        # Hint button
+          # Hint button
         hint_button_x = theme_button_x - 80
         hint_button_y = theme_button_y
-        if board.hints_available > 0:
+        
+        # Highlight button if hint mode is active
+        if board.hint_mode_active and board.hints_available > 0:
+            pygame.draw.rect(DISPLAYSURF, (100, 200, 100), (hint_button_x, hint_button_y, 70, 30))  # Green when active
+        elif board.hints_available > 0:
             pygame.draw.rect(DISPLAYSURF, theme["button"], (hint_button_x, hint_button_y, 70, 30))
         else:
             pygame.draw.rect(DISPLAYSURF, DARKGRAY, (hint_button_x, hint_button_y, 70, 30))
-        pygame.draw.rect(DISPLAYSURF, theme["grid"], (hint_button_x, hint_button_y, 70, 30), 2)
         
-        hint_text = menu_font.render("Dica", True, theme["text"] if board.hints_available > 0 else DARKGRAY)
+        # Draw border with emphasis if hint mode is active
+        border_width = 2 if not board.hint_mode_active else 3
+        pygame.draw.rect(DISPLAYSURF, theme["grid"], (hint_button_x, hint_button_y, 70, 30), border_width)
+        
+        hint_label = "Ativo (H)" if board.hint_mode_active else "Dica (H)"
+        hint_text = menu_font.render(hint_label, True, theme["text"] if board.hints_available > 0 else DARKGRAY)
         text_rect = hint_text.get_rect(center=(hint_button_x + 35, hint_button_y + 15))
         DISPLAYSURF.blit(hint_text, text_rect)
 
@@ -1315,13 +1379,11 @@ def draw_custom_screen():
     button_y = 340
     pygame.draw.rect(DISPLAYSURF, LIGHTBLUE, (button_x, button_y, button_width, button_height))
     pygame.draw.rect(DISPLAYSURF, DARKGRAY, (button_x, button_y, button_width, button_height), 2)
-    
-    # Button text
+      # Button text
     button_font = pygame.font.Font(None, 36)
     button_text = button_font.render("Iniciar Jogo", True, BLACK)
     text_rect = button_text.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
     DISPLAYSURF.blit(button_text, text_rect)
-    
     start_button = (button_x, button_y, button_width, button_height)
     
     # Back button
@@ -1334,7 +1396,6 @@ def draw_custom_screen():
     back_text = button_font.render("Voltar", True, BLACK)
     back_rect = back_text.get_rect(center=(back_x + back_width // 2, back_y + back_height // 2))
     DISPLAYSURF.blit(back_text, back_rect)
-    
     back_button = (back_x, back_y, back_width, back_height)
     
     return input_fields, start_button, back_button
@@ -1454,6 +1515,7 @@ def play_sound(sound_name):
     """Play a sound effect if sound is enabled."""
     if SOUND_ENABLED and sound_name in SOUNDS:
         SOUNDS[sound_name].play()
+
 
 def update_statistics(board, won=False):
     """Update game statistics based on board state."""
@@ -1583,24 +1645,14 @@ def main():
                     # Save game with Ctrl+S
                     elif event.key == K_s and ctrl_pressed and current_screen == "GAME" and game_board and game_board.started and not game_board.game_over:
                         game_board.save_game()
-                          # Get hint with H
+                          # Get hint with H - modified to toggle hint mode
                     elif event.key == K_h and current_screen == "GAME" and game_board and game_board.started and not game_board.game_over and not game_board.paused:
-                        if game_board.hints_available > 0 and not hint_active:
-                            hint_result = game_board.get_hint()
-                            if hint_result:
-                                hint_active = True
-                                play_sound("click")
-                                
-                                # Show contextual tip based on the hint type if tips are enabled
-                                if show_tips:
-                                    hint_x, hint_y, hint_type = hint_result
-                                    if hint_type == "flag":
-                                        show_tip("Dica: Esta célula contém uma mina. Marque-a com uma bandeira.")
-                                    elif hint_type == "safe":
-                                        show_tip("Dica: Esta célula está segura. Você pode clicar nela sem medo.")
-                                    else:
-                                        show_tip("Dica: Tente revelar esta célula.")
-                      # Show help with F1
+                        game_board.hint_mode_active = not game_board.hint_mode_active
+                        game_board.clear_hints()
+                        hint_active = game_board.hint_mode_active
+                        play_sound("click")
+                    
+                    # Show help with F1
                     elif event.key == K_F1:
                         if current_screen == "GAME" and game_board:
                             # Pause game temporarily to show help
@@ -1624,9 +1676,9 @@ def main():
                             shortcuts = [
                                 "F1 - Mostrar esta ajuda",
                                 "Esc - Pausar/Menu",
-                                "H - Usar dica",
+                                "H - Ativar/desativar modo de dica (permite ver conteúdo das células)",
                                 "Ctrl+S - Salvar jogo",
-                                "Ctrl+T - Ativar/desativar dicas",
+                                "Ctrl+T - Ativar/desativar dicas automáticas",
                                 "Ctrl+A - Ativar/desativar auto-redimensionamento",
                                 "F12 / Ctrl+Print - Capturar tela",
                                 "+ / - - Aumentar/diminuir zoom",
@@ -1636,25 +1688,43 @@ def main():
                             for i, shortcut in enumerate(shortcuts):
                                 shortcut_text = shortcut_font.render(shortcut, True, WHITE)
                                 DISPLAYSURF.blit(shortcut_text, (WINDOWWIDTH // 4, 130 + i * 30))
+                              # Add hint system explanation
+                            hint_title = help_font.render("Sistema de Dicas:", True, GREEN)
+                            DISPLAYSURF.blit(hint_title, (WINDOWWIDTH // 4, 400))
+                            
+                            hint_info = [
+                                "• Pressione H ou clique no botão Dica para ativar o modo de dica",
+                                "• No modo de dica, você pode revelar o conteúdo de células sem risco",
+                                "• Cada célula revelada custa 1 dica",
+                                "• A quantidade de dicas disponíveis depende da dificuldade"
+                            ]
+                            
+                            for i, info in enumerate(hint_info):
+                                info_text = shortcut_font.render(info, True, WHITE)
+                                DISPLAYSURF.blit(info_text, (WINDOWWIDTH // 4, 430 + i * 25))
                             
                             # Draw continue message
                             continue_text = help_font.render("Pressione qualquer tecla para voltar ao jogo", True, WHITE)
-                            continue_rect = continue_text.get_rect(center=(WINDOWWIDTH // 2, WINDOWHEIGHT - 80))
+                            continue_rect = continue_text.get_rect(center=(WINDOWWIDTH // 2, WINDOWHEIGHT - 40))
                             DISPLAYSURF.blit(continue_text, continue_rect)
                             
                             pygame.display.update()
                             
-                            # Wait for key press to continue
+                            # Wait for key press to continue, but handle this properly
                             waiting_for_key = True
                             while waiting_for_key:
                                 for evt in pygame.event.get():
-                                    if evt.type == KEYDOWN or (evt.type == QUIT):
+                                    if evt.type == QUIT:
                                         waiting_for_key = False
-                                        break
+                                        running = False
+                                        pygame.quit()
+                                        sys.exit()
+                                    elif evt.type == KEYDOWN or evt.type == MOUSEBUTTONDOWN:
+                                        waiting_for_key = False
                                 pygame.time.delay(10)
                             
                             # Restore game if it wasn't paused before
-                            if not was_paused:
+                            if not was_paused and game_board:
                                 game_board.unpause_game()
                     
                     # Handle escape key
@@ -1815,7 +1885,9 @@ def main():
                     # Custom screen logic
                     elif current_screen == "CUSTOM":
                         if event.type == MOUSEBUTTONUP and event.button == 1:
-                            input_fields, start_button, back_button = draw_custom_screen()
+                            # Removed this line since we're now calling it correctly later
+                              # Get buttons from draw_custom_screen
+                            input_fields, _, _ = draw_custom_screen()
                             
                             # Check if back button was clicked
                             if check_rect_click(event.pos, back_button):
@@ -1972,98 +2044,49 @@ def main():
                                 hint_button_x = theme_button_x - 80
                                 hint_button_y = theme_button_y
                                 hint_button = (hint_button_x, hint_button_y, 70, 30)
-                                if check_rect_click(event.pos, hint_button) and game_board.hints_available > 0 and not hint_active:
-                                    hint_result = game_board.get_hint()
-                                    if hint_result:
-                                        hint_active = True
-                                        play_sound("click")
-                                        
-                                        # Show contextual tip for the hint provided
-                                        if show_tips:
-                                            hint_x, hint_y, hint_type = hint_result
-                                            if hint_type == "flag":
-                                                show_tip("Dica: Esta célula contém uma mina. Marque-a com uma bandeira.")
-                                            elif hint_type == "safe":
-                                                show_tip("Dica: Esta célula está segura. Você pode clicar nela sem medo.")
-                                            else:
-                                                show_tip("Dica: Tente revelar esta célula.")
-                                    continue
-                                
-                                # Check if the smiley face was clicked (restart game)
-                                if check_smiley_click(mouse_x, mouse_y):
-                                    game_board = Board(BOARDWIDTH, BOARDHEIGHT, MINES, game_board.difficulty)
+                                if check_rect_click(event.pos, hint_button):
+                                    # Toggle hint mode
+                                    game_board.hint_mode_active = not game_board.hint_mode_active
+                                    # Clear any existing hints when toggling
+                                    game_board.clear_hints()
+                                    hint_active = game_board.hint_mode_active
                                     play_sound("click")
-                                    hint_active = False
                                     continue
                                 
-                                # Game board interaction
-                                cell = get_cell_at_pixel(mouse_x, mouse_y)
-                                if cell:
-                                    x, y = cell
-                                    # Get keyboard modifiers state
-                                    shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
+                                # Process cell clicks
+                                cell_pos = get_cell_at_pixel(event.pos[0], event.pos[1])
+                                if cell_pos:
+                                    cell_x, cell_y = cell_pos
                                     
-                                    # Clear any active hints
+                                    # When hint mode is active, just reveal the cell content without consequences
                                     if hint_active:
-                                        game_board.clear_hints()
-                                        hint_active = False
-                                    
-                                    if event.button == 1:  # Left click
-                                        was_started = game_board.started
-                                        was_win = game_board.win
-                                        
-                                        # Check if clicking on a revealed cell with a number
-                                        if (0 <= x < game_board.width and 0 <= y < game_board.height and 
-                                            game_board.board[y][x]['state'] == REVEALED and
-                                            game_board.board[y][x]['value'] > 0):
-                                            # Try to auto-reveal surrounding cells
-                                            play_sound("click")
-                                            game_board.auto_reveal_around(x, y)
-                                            if game_board.game_over:
-                                                game_board.end_game()
-                                                if game_board.win:
-                                                    play_sound("win")
-                                                    update_statistics(game_board, True)
-                                                else:
-                                                    play_sound("explosion")
-                                                    update_statistics(game_board, False)
-                                                    
-                                        # If Shift is pressed, toggle flag
-                                        elif shift_pressed:
-                                            game_board.toggle_flag(x, y)
+                                        game_board.peek_cell(cell_x, cell_y)
+                                        play_sound("click")
+                                    # Normal left click to reveal cell
+                                    elif event.button == 1:
+                                        # Check for Shift+Click
+                                        shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
+                                        if shift_pressed:  # Shift+Click acts as right-click
+                                            game_board.toggle_flag(cell_x, cell_y)
                                             play_sound("flag")
-                                            
-                                        # Otherwise handle normal click logic
-                                        else:
-                                            # Regular cell reveal
-                                            old_state = game_board.board[y][x]['state']
-                                            old_value = game_board.board[y][x]['value']
-                                            
-                                            if old_state == HIDDEN:
-                                                play_sound("click")
-                                                
-                                            game_board.reveal_cell(x, y)
-                                            
-                                            if game_board.game_over:
-                                                game_board.end_game()
-                                                if game_board.win:
-                                                    play_sound("win")
-                                                    update_statistics(game_board, True)
-                                                elif old_value == -1:  # Clicked on a mine
-                                                    play_sound("explosion")
-                                                    update_statistics(game_board, False)
-                                              # Start tracking statistics for new games
-                                            if not was_started and game_board.started:
-                                                game_start_time = time.time()
-                                                # Show a tip for new players if tips are enabled
-                                                if show_tips:
-                                                    show_tip("Dica: Use botão direito para colocar bandeiras. Use Shift+clique como atalho.")
-                                    
-                                    elif event.button == 3:  # Right click - alternative way to flag
-                                        game_board.toggle_flag(x, y)
+                                        else:  # Normal left click
+                                            # If the cell is a revealed number, try auto-reveal around it
+                                            cell = game_board.board[cell_y][cell_x]
+                                            if cell['state'] == REVEALED and cell['value'] > 0:
+                                                game_board.auto_reveal_around(cell_x, cell_y)
+                                            else:
+                                                game_board.reveal_cell(cell_x, cell_y)
+                                                if game_board.game_over:
+                                                    if game_board.win:
+                                                        play_sound("win")
+                                                    else:
+                                                        play_sound("explosion")
+                                                else:
+                                                    play_sound("click")
+                                    # Right click to place flag
+                                    elif event.button == 3:  # Right click
+                                        game_board.toggle_flag(cell_x, cell_y)
                                         play_sound("flag")
-                        
-                        # Handle keyboard input (P for pause, etc.)
             
             # Draw the appropriate screen
             if current_screen == "START":
@@ -2071,7 +2094,7 @@ def main():
             elif current_screen == "DIFFICULTY":
                 buttons = draw_difficulty_screen()
             elif current_screen == "CUSTOM":
-                input_fields, _, _ = draw_custom_screen()
+                input_fields, start_button, back_button = draw_custom_screen()
                 draw_input_field_values(input_fields, custom_values)
             elif current_screen == "SETTINGS":
                 buttons = draw_settings_screen()
@@ -2080,37 +2103,23 @@ def main():
             elif current_screen == "LOAD_GAME":
                 buttons = draw_load_game_screen()
             elif current_screen == "GAME" and game_board:
-                draw_board(game_board)              # Check if we need to clear hints after some time
-            if hint_active and game_board:
-                # Clear hints after 5 seconds
-                for y in range(game_board.height):
-                    for x in range(game_board.width):
-                        if game_board.board[y][x]['marked_for_hint']:
-                            # Keep hints visible for 5 seconds
-                            pygame.time.set_timer(pygame.USEREVENT, 5000)
-                            pygame.event.post(pygame.event.Event(pygame.USEREVENT, {}))
-                            break
-                    else:
-                        continue
-                    break
-            
-            # Show periodic tips if enabled and player seems to be stuck
-            if show_tips and game_board and game_board.started and not game_board.paused and not game_board.game_over:
-                current_time = time.time()
-                # Show tip if player hasn't made progress in 30 seconds
-                if current_time - last_tip_time > 60:  # One minute between tips
-                    time_without_action = current_time - game_board.start_time - game_board.total_pause_time
-                    completion = game_board.get_completion_percentage()
-                    
-                    # Choose appropriate tips based on game state
-                    if completion < 15 and time_without_action > 30:
-                        show_tip("Dica: Comece pelos cantos ou bordas, geralmente são mais seguros.")
-                    elif completion > 15 and completion < 40 and time_without_action > 45:
-                        show_tip("Dica: Quando um número está cercado por bandeiras, você pode clicar nele para revelar o restante.")
-                    elif completion > 40 and completion < 70 and game_board.hints_available > 0:
-                        show_tip("Dica: Você ainda tem dicas disponíveis. Pressione H para usar uma.")
-                    
-                    last_tip_time = current_time
+                draw_board(game_board)
+                # Check if we need to clear hints after some time
+                if hint_active and game_board:                    # Show hint mode indicator on screen
+                    hint_font = pygame.font.Font(None, 24)
+                    cost_text = f" (Custo: 1 dica por célula, disponíveis: {game_board.hints_available})"
+                    hint_text = hint_font.render(f"Modo Dica: Clique em uma célula para revelar seu conteúdo sem consequências{cost_text}", True, (0, 150, 0))
+                    hint_bg = pygame.Surface((hint_text.get_width() + 10, hint_text.get_height() + 6), pygame.SRCALPHA)
+                    hint_bg.fill((255, 255, 255, 180))  # Semi-transparent white background
+                    DISPLAYSURF.blit(hint_bg, (10, WINDOWHEIGHT - 40))
+                    DISPLAYSURF.blit(hint_text, (15, WINDOWHEIGHT - 37))
+                      # Use a custom cursor for hint mode
+                    if not pygame.mouse.get_cursor() == pygame.SYSTEM_CURSOR_CROSSHAIR:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_CROSSHAIR)
+                else:
+                    # Reset cursor when not in hint mode
+                    if pygame.mouse.get_cursor() == pygame.SYSTEM_CURSOR_CROSSHAIR:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             
             # Update the display
             pygame.display.update()
@@ -2278,18 +2287,18 @@ def show_tip(text):
     """Show a gameplay tip to the user if tips are enabled."""
     if not show_tips:
         return
-        
+    
     # Create a semi-transparent overlay for the tip
     tip_overlay = pygame.Surface((WINDOWWIDTH, 80), pygame.SRCALPHA)
     tip_overlay.fill((0, 0, 128, 180))  # Semi-transparent blue
+    DISPLAYSURF.blit(tip_overlay, (0, WINDOWHEIGHT - 80))
     
     # Draw the tip text
     tip_font = pygame.font.Font(None, 24)
     tip_text = tip_font.render(text, True, WHITE)
     tip_rect = tip_text.get_rect(center=(WINDOWWIDTH // 2, 40))
     
-    # Display the tip at the bottom of the screen
-    DISPLAYSURF.blit(tip_overlay, (0, WINDOWHEIGHT - 80))
+    # Display the tip at the bottom of the screen        
     DISPLAYSURF.blit(tip_text, (tip_rect.x, WINDOWHEIGHT - 50))
     
     # Update only the tip area
@@ -2314,14 +2323,14 @@ def save_screenshot():
         pygame.image.save(DISPLAYSURF, screenshot_path)
         
         # Flash effect to indicate screenshot was taken
-        flash = pygame.Surface((WINDOWWIDTH, WINDOWHEIGHT), pygame.SRCALPHA)
+        flash = pygame.Surface((WINDOWWIDTH, WINDOWHEIGHT), pygame.SRCALPHA)    
         flash.fill((255, 255, 255, 100))  # Semi-transparent white
         
         # Show the flash
         original_surface = DISPLAYSURF.copy()
-        DISPLAYSURF.blit(flash, (0, 0))
+        DISPLAYSURF.blit(flash, (0, 0))    
         
-        # Show message
+        # Show messages
         msg_font = pygame.font.Font(None, 36)
         msg_text = msg_font.render("Captura de tela salva!", True, (0, 128, 0))
         msg_rect = msg_text.get_rect(center=(WINDOWWIDTH // 2, WINDOWHEIGHT // 4))
@@ -2329,41 +2338,33 @@ def save_screenshot():
         # Add shadow for better visibility
         shadow_text = msg_font.render("Captura de tela salva!", True, (0, 0, 0))
         shadow_rect = shadow_text.get_rect(center=(WINDOWWIDTH // 2 + 2, WINDOWHEIGHT // 4 + 2))
-        
         DISPLAYSURF.blit(shadow_text, shadow_rect)
         DISPLAYSURF.blit(msg_text, msg_rect)
         
+        DISPLAYSURF.blit(original_surface, (0, 0))
         # Show path message
         path_font = pygame.font.Font(None, 24)
         path_text = path_font.render(f"Salvo em: {screenshots_dir}", True, (0, 0, 0))
         path_rect = path_text.get_rect(center=(WINDOWWIDTH // 2, WINDOWHEIGHT // 4 + 30))
-        
         DISPLAYSURF.blit(path_text, path_rect)
         
+        # Update display
         pygame.display.update()
         pygame.time.delay(800)  # Show message for 0.8 seconds
         
         # Restore original display
         DISPLAYSURF.blit(original_surface, (0, 0))
-        pygame.display.update()
         
         return True
+        
     except Exception as e:
         print(f"Error saving screenshot: {e}")
         return False
 
+# Skip tip of the day to start faster
+show_splash_screen()    # Show splash screen
+DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
+WINDOWHEIGHT = 600
+WINDOWWIDTH = 800    # Set default window size to something larger
 if __name__ == "__main__":
-    # Set default window size to something larger
-    WINDOWWIDTH = 800
-    WINDOWHEIGHT = 600
-    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), pygame.RESIZABLE)
-    
-    # Show splash screen
-    show_splash_screen()
-    
-    # Skip tip of the day to start faster
-    # if show_tips:
-    #     show_tip_of_the_day()
-    
-    # Start the game
     main()
