@@ -284,6 +284,7 @@ class Board:
         self.game_over = False
         self.win = False
         self.start_time = 0
+        self.end_time = 0  # Initialize end_time attribute
         self.flags_placed = 0
         self.revealed_cells = 0
         self.total_cells = width * height
