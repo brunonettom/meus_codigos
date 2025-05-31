@@ -430,14 +430,24 @@ class Board:
         if not self.started:
             return 0
         if self.game_over:
-            return int(self.end_time - self.start_time)
-        return int(time.time() - self.start_time)
+            return int(self.end_time - self.start_time - self.total_pause_time)
+        if self.paused:
+            # When paused, calculate time up to when it was paused
+            return int(self.pause_start_time - self.start_time - self.total_pause_time)
+        # For active game, subtract total pause time from elapsed time
+        return int(time.time() - self.start_time - self.total_pause_time)
     
     def end_game(self):
         """End the current game and set the end time."""
         self.game_over = True
         self.end_time = time.time()
         
+        # If the game was paused when ending, add the current pause duration to total_pause_time
+        if self.paused:
+            pause_duration = time.time() - self.pause_start_time
+            self.total_pause_time += pause_duration
+            self.paused = False
+            
         # Turn off hint mode when the game ends
         if self.hint_mode_active:
             self.hint_mode_active = False
@@ -692,12 +702,13 @@ class Board:
                     # Add marked_for_hint which isn't saved
                     cell["marked_for_hint"] = False
                     new_row.append(cell)
-                self.board.append(new_row)
-                  # Set up timing info
+                self.board.append(new_row)            # Set up timing info
             current_time = time.time()
             self.start_time = current_time - game_data["elapsed_time"]
+            self.end_time = current_time if self.game_over else 0
             self.paused = False
-            self.total_pause_time = 0
+            self.total_pause_time = 0  # Reset pause time since elapsed_time already accounts for previous pauses
+            self.pause_start_time = 0
             self.last_autosave = current_time  # Initialize autosave timer for loaded game
             
             return True
