@@ -281,6 +281,7 @@ class Board:
         self.game_over = False
         self.win = False
         self.start_time = 0
+        self.end_time = 0  # Initialize end_time to prevent attribute errors
         self.flags_placed = 0
         self.revealed_cells = 0
         self.total_cells = width * height
@@ -389,6 +390,7 @@ class Board:
         if self.revealed_cells == self.total_cells - self.mines:
             self.win = True
             self.game_over = True
+            self.end_time = time.time()  # Set end time when winning
             self.flag_all_mines()
 
     def toggle_flag(self, x, y):
@@ -424,6 +426,9 @@ class Board:
         if not self.started:
             return 0
         if self.game_over:
+            # Make sure end_time exists
+            if not hasattr(self, 'end_time') or self.end_time == 0:
+                self.end_time = time.time()
             return int(self.end_time - self.start_time)
         return int(time.time() - self.start_time)
     
@@ -1703,7 +1708,7 @@ def main():
                             play_sound("click")
                     
                     # Zoom in with Ctrl+ or +
-                    elif (ctrl_pressed and (event.key == K_PLUS or event.key == K_EQUALS)) or event.key == K_PLUS or event.key == K_EQUALS:
+                    elif (ctrl_pressed and (event.key == K_PLUS or event.key == K_EQUALS)) or event.key == K_PLUS or K_EQUALS:
                         if BLOCKSIZE < MAX_BLOCKSIZE:
                             BLOCKSIZE += ZOOM_STEP
                             ZOOM_FACTOR = BLOCKSIZE / DEFAULT_BLOCKSIZE
@@ -2214,17 +2219,19 @@ def main():
                                         play_sound("click")
                                     # Normal left click to reveal cell
                                     elif event.button == 1:
-                                        # Check for Shift+Click
-                                        shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
-                                        if shift_pressed:  # Shift+Click acts as right-click
-                                            game_board.toggle_flag(cell_x, cell_y)
-                                            play_sound("flag")
-                                        else:  # Normal left click
-                                            # If the cell is a revealed number, try auto-reveal around it
-                                            cell = game_board.board[cell_y][cell_x]
-                                            if cell['state'] == REVEALED and cell['value'] > 0:
-                                                game_board.auto_reveal_around(cell_x, cell_y)
-                                            else:
+                                        # First check if the cell is a revealed number
+                                        cell = game_board.board[cell_y][cell_x]
+                                        if cell['state'] == REVEALED and cell['value'] > 0:
+                                            # Always auto-reveal around numbers, regardless of shift key
+                                            game_board.auto_reveal_around(cell_x, cell_y)
+                                            play_sound("click")
+                                        else:
+                                            # Check for Shift+Click for hidden cells only
+                                            shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
+                                            if shift_pressed and cell['state'] != REVEALED:  # Shift+Click acts as right-click for hidden cells
+                                                game_board.toggle_flag(cell_x, cell_y)
+                                                play_sound("flag")
+                                            else:  # Normal left click
                                                 game_board.reveal_cell(cell_x, cell_y)
                                                 if game_board.game_over:
                                                     if game_board.win:
