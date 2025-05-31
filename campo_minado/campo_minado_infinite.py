@@ -25,6 +25,10 @@ DEFAULT_BLOCKSIZE = 30  # Default size of each cell in pixels
 MIN_BLOCKSIZE = 15  # Minimum block size when zooming out
 MAX_BLOCKSIZE = 60  # Maximum block size when zooming in
 BLOCKSIZE = DEFAULT_BLOCKSIZE  # Current size of each cell in pixels
+
+# Autosave configuration
+AUTO_SAVE = True  # Whether to automatically save the game
+AUTO_SAVE_INTERVAL = 60  # How often to auto-save in seconds (1 minute)
 ZOOM_FACTOR = 1.0  # Current zoom level
 SCROLL_OFFSET_X = 0  # Offset for navigating around the board with touchpad
 SCROLL_OFFSET_Y = 0  # Offset for navigating around the board with touchpad
@@ -274,7 +278,7 @@ class Board:
         self.height = height
         self.mines = mines
         self.difficulty = difficulty  # Track difficulty level
-        self.board = [[{'state': HIDDEN, 'value': 0, 'marked_for_hint': False} for _ in range(width)] for _ in range(height)]
+        self.board = [[{'state': HIDDEN, 'value': 0, 'marked_for_hint': False} for _ in range(width)] for _ in range(height)]        
         self.lives = 3  # Start with 3 lives
         self.started = False
         self.game_over = False
@@ -290,6 +294,7 @@ class Board:
         self.pause_start_time = 0
         self.total_pause_time = 0
         self.last_action = ""  # Track last action for undo
+        self.last_autosave = 0  # Track when the last autosave happened
         
         # Set hints based on difficulty
         if difficulty == "EASY":
@@ -321,7 +326,6 @@ class Board:
         
         # Randomly select cells for mines
         mine_positions = random.sample(available_cells, max_mines)
-        
         for x, y in mine_positions:
             self.board[y][x]['value'] = -1  # -1 represents a mine
             mines_placed += 1
@@ -334,7 +338,9 @@ class Board:
                         self.board[ny][nx]['value'] += 1
         
         self.started = True
-        self.start_time = time.time()
+        current_time = time.time()
+        self.start_time = current_time
+        self.last_autosave = current_time  # Initialize autosave timer
     
     def reveal_cell(self, x, y):
         if not (0 <= x < self.width and 0 <= y < self.height):
@@ -686,11 +692,12 @@ class Board:
                     cell["marked_for_hint"] = False
                     new_row.append(cell)
                 self.board.append(new_row)
-                
-            # Set up timing info
-            self.start_time = time.time() - game_data["elapsed_time"]
+                  # Set up timing info
+            current_time = time.time()
+            self.start_time = current_time - game_data["elapsed_time"]
             self.paused = False
             self.total_pause_time = 0
+            self.last_autosave = current_time  # Initialize autosave timer for loaded game
             
             return True
             
@@ -2173,7 +2180,7 @@ def main():
             elif current_screen == "STATISTICS":
                 buttons = draw_statistics_screen()
             elif current_screen == "LOAD_GAME":
-                buttons = draw_load_game_screen()
+                buttons = draw_load_game_screen()            
             elif current_screen == "GAME" and game_board:
                 draw_board(game_board)
                 # Check if we need to clear hints after some time
@@ -2192,6 +2199,21 @@ def main():
                     # Reset cursor when not in hint mode
                     if pygame.mouse.get_cursor() == pygame.SYSTEM_CURSOR_CROSSHAIR:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                  # Auto-save feature
+                if AUTO_SAVE and game_board.started and not game_board.game_over and not game_board.paused:
+                    current_time = time.time()
+                    # Check if it's time to auto-save based on the interval
+                    if current_time - game_board.last_autosave >= AUTO_SAVE_INTERVAL:
+                        saved_file = game_board.save_game()
+                        game_board.last_autosave = current_time
+                        if show_tips and saved_file:  # Optionally show a subtle notification
+                            # Display a small notification at the bottom
+                            autosave_font = pygame.font.Font(None, 20)
+                            autosave_text = autosave_font.render("Jogo salvo automaticamente", True, (0, 150, 0))
+                            autosave_bg = pygame.Surface((autosave_text.get_width() + 10, autosave_text.get_height() + 6), pygame.SRCALPHA)
+                            autosave_bg.fill((255, 255, 255, 180))
+                            DISPLAYSURF.blit(autosave_bg, (WINDOWWIDTH - autosave_text.get_width() - 20, 10))
+                            DISPLAYSURF.blit(autosave_text, (WINDOWWIDTH - autosave_text.get_width() - 15, 13))
             
             # Update the display
             pygame.display.update()
