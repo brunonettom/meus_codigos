@@ -2143,17 +2143,20 @@ def main():
                                         play_sound("click")
                                     # Normal left click to reveal cell
                                     elif event.button == 1:
-                                        # Check for Shift+Click
-                                        shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
-                                        if shift_pressed:  # Shift+Click acts as right-click
-                                            game_board.toggle_flag(cell_x, cell_y)
-                                            play_sound("flag")
-                                        else:  # Normal left click
-                                            # If the cell is a revealed number, try auto-reveal around it
-                                            cell = game_board.board[cell_y][cell_x]
-                                            if cell['state'] == REVEALED and cell['value'] > 0:
-                                                game_board.auto_reveal_around(cell_x, cell_y)
-                                            else:
+                                        # Check if the cell is a revealed number first, to allow auto-reveal regardless of shift
+                                        cell = game_board.board[cell_y][cell_x]
+                                        if cell['state'] == REVEALED and cell['value'] > 0:
+                                            game_board.auto_reveal_around(cell_x, cell_y)
+                                            # Add sound effect when clicking on numbers for auto-reveal
+                                            play_sound("click")
+                                        # If not a revealed number, then consider Shift+Click for flagging
+                                        else:
+                                            # Check for Shift+Click
+                                            shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
+                                            if shift_pressed:  # Shift+Click acts as right-click
+                                                game_board.toggle_flag(cell_x, cell_y)
+                                                play_sound("flag")
+                                            else:  # Normal left click
                                                 game_board.reveal_cell(cell_x, cell_y)
                                                 if game_board.game_over:
                                                     if game_board.win:
